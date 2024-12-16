@@ -3,7 +3,7 @@
 </p>
 
 # Serial Wizard
-Welcome to SerialWizard, A simple, lightweight, cross-platform desktop application used to monitor serial inputs and outputs. Created with Tauri, this application uses a Next.js frontend and a Rust backend. The aim of this project is to learn how to make desktop applications and improve my Rust skills.
+Welcome to Dcubed - ISM Project Mission Manage, A simple, lightweight, cross-platform desktop application used to monitor serial inputs and outputs. Created with Tauri, this application uses a Next.js frontend and a Rust backend. The aim of this project is to learn how to make desktop applications and improve my Rust skills.
 
 <br />
 

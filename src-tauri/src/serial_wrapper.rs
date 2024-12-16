@@ -9,7 +9,7 @@ use std::{io, thread};
 use tauri::Manager;
 use std::fs::File;
 use std::time::SystemTime;
-use chrono::{DateTime, Local};
+use chrono::{Local};
 use std::path::PathBuf;
 
 #[derive(Clone, serde::Serialize)]
@@ -62,7 +62,7 @@ pub fn start_clone_thread(
                     app.emit_all("updateSerial", Payload { message: data_str }).unwrap();
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-                Err(e) => {
+                Err(_) => {
                     // clone the app
                     let app_clone = app.clone();
                     use crate::AppData;
@@ -71,8 +71,9 @@ pub fn start_clone_thread(
                     let mut state_gaurd = state.0.lock().unwrap();
                     // set the port as an none
                     // clone state gaurd data
-                    let port_path = state_gaurd.port_items.port_path.clone();
-                    let baud_rate = state_gaurd.port_items.baud_rate.clone();
+                    let _port_path = state_gaurd.port_items.port_path.clone();
+                    let _baud_rate = state_gaurd.port_items.baud_rate.clone();
+                    
                     // set the port as none
                     state_gaurd.port = None;
 
@@ -118,7 +119,7 @@ pub fn start_record_on_port(
                 }
                 // Handle errors
                 Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
-                Err(e) => {
+                Err(_) => {
                     // clone the app
                     let app_clone = app.clone();
                     use crate::AppData;
@@ -153,7 +154,7 @@ pub fn start_record_on_port(
                         // reset the timer
                         start_time = SystemTime::now();
                     }
-                    Err(e) => {
+                    Err(_) => {
                     // clone the app
                     let app_clone = app.clone();
                     use crate::AppData;
