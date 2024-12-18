@@ -1,4 +1,7 @@
+import Image from "next/image";
 import React from "react";
+import MotorSVG from "../../public/download-removebg-preview.png"; // Ajuste o caminho conforme necessário
+
 
 interface MotorIconProps {
   speed: number; // Velocidade do motor (0 a 5000 RPM)
@@ -7,7 +10,8 @@ interface MotorIconProps {
 }
 
 const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
-  const rotation = status === "ON" ? (direction === "CW" ? speed : -speed) : 0;
+  // Calcula o tempo da rotação baseado na velocidade: mais rápido, menor duração
+  const rotationDuration = status === "ON" ? Math.max(2, 10 - speed / 1000) : 0;
 
   return (
     <div
@@ -16,32 +20,26 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
         height: "100px",
         position: "relative",
         display: "inline-block",
-        animation: rotation
-          ? `spin ${Math.max(1, 5000 / speed)}s linear infinite`
-          : undefined,
+        background: "none", // Sem fundo
+        animation: status === "ON"
+          ? `spin ${rotationDuration}s linear infinite ${direction === "CCW" ? "reverse" : "normal"}`
+          : "none",
         transformOrigin: "center",
       }}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        version="1.0"
-        viewBox="0 0 1234 1234"
-        className="w-full h-full"
+      {/* Imagem do Motor */}
+      <Image
+        src={MotorSVG}
+        alt="Motor Icon"
         style={{
-          fill: status === "ON" ? "rgba(128, 0, 255, 0.7)" : "gray",
-          filter: `drop-shadow(0 0 ${speed / 50}px rgba(128, 0, 255, ${
-            status === "ON" ? 0.5 : 0
-          }))`,
+          width: "100%",
+          height: "100%",
+          opacity: status === "ON" ? 1 : 0.5,
+          filter: status === "ON" ? "drop-shadow(0 0 10px rgba(128, 0, 255, 0.7))" : "none",
         }}
-      >
-        {/* Adicione aqui o SVG do motor */}
-        <path
-          fillOpacity=".1"
-          d="M412.4 664c0 9.6.2 13.6.3 8.7.2-4.8.2-12.6 0-17.5-.1-4.8-.3-.8-.3 8.8m68.1..."
-        />
-        {/* Inclua outros elementos do seu SVG */}
-      </svg>
-      {/* Indicador de direção */}
+      />
+
+      {/* Indicador de Direção */}
       <div
         style={{
           position: "absolute",
@@ -52,8 +50,22 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
           fontSize: "12px",
         }}
       >
-        {direction === "CW" ? "↻ CW" : "↺ CCW"}
+        
       </div>
+
+      {/* Animação CSS */}
+      <style>
+        {`
+          @keyframes spin {
+            from {
+              transform: rotate(0deg);
+            }
+            to {
+              transform: rotate(360deg);
+            }
+          }
+        `}
+      </style>
     </div>
   );
 };

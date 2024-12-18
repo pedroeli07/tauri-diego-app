@@ -21,6 +21,29 @@ async function handleConnect(
   setIsConnected(isConnected);
   return isConnected; // Retorna o valor booleano
 }
+
+
+/**
+ * Função para desconectar da porta serial.
+ * @param setIsConnected - Função para atualizar o estado de conexão.
+ */
+export async function handleDisconnect(setIsConnected: (status: boolean) => void): Promise<boolean> {
+  try {
+    const disconnected = await invoke<boolean>("handle_serial_disconnect");
+    if (disconnected) {
+      console.log("Serial port successfully disconnected.");
+      setIsConnected(false); // Atualiza o estado no frontend
+    } else {
+      console.warn("No active serial port to disconnect.");
+    }
+    return disconnected;
+  } catch (error) {
+    console.error("Error disconnecting serial port:", error);
+    return false;
+  }
+}
+
+
 /**
  * Configura os listeners para os eventos de comunicação serial.
  * @param updateLEDStatus - Função para atualizar o status do LED na UI.
@@ -28,6 +51,7 @@ async function handleConnect(
  * @param updateLightBarrierStatus - Função para atualizar o status da Light Barrier na UI.
  * @param addLog - Função para adicionar logs ao sistema de logs.
  */
+
 function setupSerialListeners(
   updateLEDStatus: (id: number, status: "ON" | "OFF", intensity?: number) => void,
   updateMotorStatus: (id: number, status: "ON" | "OFF", speed?: number, direction?: "CW" | "CCW") => void,

@@ -100,10 +100,6 @@ body {
 
 
 
-
-
-
-
 @layer base {
   * {
     @apply border-border;
@@ -114,15 +110,10 @@ body {
 }
 
 
-
 /* Animação de Blink Sutil e Lento */
 @keyframes subtle-blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.6; }
-}
-
-.animate-subtle-blink {
-  animation: subtle-blink 2.2s infinite;
 }
 
 /* Outras Animações Existentes */
@@ -135,10 +126,6 @@ body {
   }
 }
 
-.animate-brightness {
-  animation: brightness-adjust 0.5s ease-in-out;
-}
-
 /* Efeito de iluminação gradual no card */
 @keyframes inner-glow {
   from {
@@ -148,18 +135,6 @@ body {
     box-shadow: inset 0 0 20px 5px rgba(255, 223, 70, 0.2), 0 0 30px 10px rgba(255, 223, 70, 0.4);
   }
 }
-
-.card-lit {
-  animation: inner-glow 0.5s ease-in-out forwards;
-}
-
-.card-dimmed {
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1), 0 0 10px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 0.5s ease-in-out;
-}
-
-
-
 
 
 @keyframes spin {
@@ -189,68 +164,8 @@ body {
   }
 }
 
-.animate-spin-slow {
-  animation: spin-slow linear infinite;
-}
 
-.animate-spin-reverse {
-  animation: spin-reverse linear infinite;
-}
 
-.control-panel {
-  padding: 20px;
-  font-family: Arial, sans-serif;
-}
-
-.connection-section, .recording-section, .controls-section {
-  margin-bottom: 30px;
-}
-
-.connection-section select, .recording-section button {
-  margin-right: 10px;
-  padding: 5px 10px;
-}
-
-.connect-button, .disconnect-button, .record-button, .set-folder-button {
-  padding: 5px 15px;
-  cursor: pointer;
-}
-
-.controls-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.led-control-card, .motor-control-card {
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  padding: 15px;
-  width: 200px;
-  text-align: center;
-}
-
-.power-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  margin: 10px 0;
-}
-
-.intensity-control, .motor-settings {
-  margin-top: 10px;
-}
-
-.intensity-control label, .motor-settings label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-.intensity-control input, .motor-settings input, .motor-settings select {
-  width: 100%;
-  padding: 5px;
-  margin-bottom: 10px;
-}
 
 /* Scrollbar Styling */
 ::-webkit-scrollbar {
@@ -298,58 +213,106 @@ body {
   border: none;
 }
 
-@keyframes brightness-adjust {
-  from {
-    filter: brightness(0%);
+.neon-led-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Neon LED Effect */
+.neon-led-effect::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 3px solid transparent;
+  background: linear-gradient(
+    90deg,
+    rgba(128, 0, 255, 0.5),
+    rgba(128, 0, 255, 0.9)),
+    rgba(0, 128, 255, 0.5),
+    rgba(128, 0, 255, 0.5)
+  );
+  background-size: 400% 400%;
+  animation: neon-flow 4s infinite linear;
+  z-index: -1; /* Ensure it stays behind other elements */
+  filter: blur(8px); /* Increased blur for a more glowing effect */
+}
+
+@keyframes neon-flow {
+  0% {
+    background-position: 0% 50%;
   }
-  to {
-    filter: brightness(100%);
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
 
-.animate-brightness {
-  animation: brightness-adjust 0.5s ease-in-out;
-}
-
-/* Efeito de iluminação gradual no card */
-@keyframes inner-glow {
-  from {
-    box-shadow: inset 0 0 0 0 rgba(255, 223, 70, 0.2), 0 0 0 0 rgba(255, 223, 70, 0.4);
+@keyframes light-loop {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0.4;
   }
-  to {
-    box-shadow: inset 0 0 20px 5px rgba(255, 223, 70, 0.2), 0 0 30px 10px rgba(255, 223, 70, 0.4);
+  50% {
+    transform: translateX(0%);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(100%);
+    opacity: 0.4;
   }
 }
 
-.card-lit {
-  animation: inner-glow 0.5s ease-in-out forwards;
+.animate-light-loop {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%; /* Ajuste da largura */
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.6), /* Cor branca translúcida */
+    transparent
+  );
+  animation: light-loop 4s ease-in-out infinite;
 }
 
-.card-dimmed {
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1), 0 0 10px rgba(0, 0, 0, 0.2);
-  transition: box-shadow 0.5s ease-in-out;
+/* Remove spinner de inputs tipo number no Chrome, Safari e Edge */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Remove spinner no Firefox */
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@keyframes neonGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(128, 0, 255, 0.5), 0 0 10px rgba(128, 0, 255, 0.5), 0 0 20px rgba(128, 0, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 10px rgba(128, 0, 255, 0.7), 0 0 20px rgba(128, 0, 255, 0.7), 0 0 30px rgba(128, 0, 255, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(128, 0, 255, 0.5), 0 0 10px rgba(128, 0, 255, 0.5), 0 0 20px rgba(128, 0, 255, 0.5);
+  }
+}
+
+.animate-neonGlow {
+  animation: neonGlow 2s infinite alternate;
 }
 
 @keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
   50% {
-    opacity: 0;
+    opacity: 0.5;
   }
 }
 
 .animate-blink {
-  animation: blink 2.2s infinite;
-}
-
-/* styles/globals.css */
-
-@keyframes subtle-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.subtle-blink {
-  animation: subtle-blink 2.2s infinite;
+  animation: blink 1s infinite;
 }

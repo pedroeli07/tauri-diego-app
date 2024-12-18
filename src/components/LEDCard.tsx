@@ -1,185 +1,134 @@
-// src/components/LEDCard.tsx
-import React, { useState, useEffect } from "react";
-import { LED } from "@/lib/types";
-import { handleLEDCommand } from "@/utils/commands";
-import { toast } from "@/components/Toast";
-import GlobalCard from "@/components/GlobalCard";
-import LEDLamp from "@/components/LEDIcon";
+// components/LEDCard.tsx
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import CustomTooltip from './CustomTooltip';
+import {Power, PowerOff,} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import CustomSlider from "@/components/ui/custom-slider";
-import CustomTooltip from "@/components/CustomTooltip"; // Importação do Tooltip
-import { motion, AnimatePresence } from "framer-motion"; // Importação para animações
+import clsx from "clsx"; // Utility for conditional classNames
+import LEDIcon from "@/components/LEDIcon";
 
-interface LEDCardProps {
-  led: LED;
-  refreshStatus: (id: number, status: "ON" | "OFF", intensity?: number) => void;
+interface LED {
+  id: number;
+  status: 'ON' | 'OFF';
+  intensity: number;
 }
 
-const LEDCard: React.FC<LEDCardProps> = ({ led, refreshStatus }) => {
-  const [tempIntensity, setTempIntensity] = useState<number>(led.intensity);
-  const [blink, setBlink] = useState<boolean>(true);
-  const [intensityBlink, setIntensityBlink] = useState<boolean>(true); // Estado para piscar a intensidade
+interface LEDCardProps {
+  leds: LED[];
+  isConnected: boolean;
+  isRecording: boolean;
+  handleLEDToggle: (id: number) => void;
+  tempIntensity: number;
+  setTempIntensity: (value: number) => void;
+  handleLEDIntensityChange: (id: number, intensity: number) => void;
+}
 
-  // Controle do efeito de piscar do card
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setBlink(false);
-      setTimeout(() => setBlink(true), 1000); // Mantém o estado de blink falso por 1 segundo
-    }, 2200); // Pisca a cada 2.2 segundos
-
-    return () => clearInterval(interval);
-  }, []);
-
-  // Controle do efeito de piscar da intensidade
-  useEffect(() => {
-    if (led.status === "ON") {
-      const intensityInterval = setInterval(() => {
-        setIntensityBlink(false);
-        setTimeout(() => setIntensityBlink(true), 1000); // Mantém o estado de intensidadeBlink falso por 1 segundo
-      }, 2200); // Pisca a cada 2.2 segundos
-
-      return () => clearInterval(intensityInterval);
-    }
-  }, [led.status]);
-
-  // Atualiza a intensidade quando o status muda
-  useEffect(() => {
-    if (led.status === "OFF") {
-      setTempIntensity(0);
-    } else {
-      setTempIntensity(led.intensity || 100);
-    }
-  }, [led.intensity, led.status]);
-
-  // Função para alternar o status do LED
-  const toggleStatus = async () => {
-    const newStatus = led.status === "ON" ? "OFF" : "ON";
-    const newIntensity = newStatus === "OFF" ? 0 : led.intensity || 100;
-
-    const success = await handleLEDCommand(led.id, newStatus, newIntensity);
-    if (success) {
-      refreshStatus(led.id, newStatus, newIntensity);
-      toast.success(`LED ${led.id} atualizado para ${newStatus} com intensidade ${newIntensity}%`);
-    } else {
-      toast.error(`Falha ao atualizar LED ${led.id}.`);
-    }
-  };
-
-  // Função para lidar com a mudança de intensidade
-  const handleIntensityChange = (value: number) => {
-    setTempIntensity(value);
-  };
-
-  // Função para salvar a intensidade
-  const saveIntensity = async () => {
-    const validatedIntensity = Math.max(0, Math.min(100, parseFloat(tempIntensity.toFixed(2))));
-    const newStatus = validatedIntensity > 0 ? "ON" : "OFF";
-    const success = await handleLEDCommand(led.id, newStatus, validatedIntensity);
-    if (success) {
-      refreshStatus(led.id, newStatus, validatedIntensity);
-      toast.success(`LED ${led.id} atualizado para ${newStatus} com intensidade ${validatedIntensity}%`);
-    } else {
-      toast.error(`Falha ao atualizar LED ${led.id}.`);
-    }
-  };
-
+const LEDCard: React.FC<LEDCardProps> = ({
+  leds,
+  isConnected,
+  isRecording,
+  handleLEDToggle,
+  tempIntensity,
+  setTempIntensity,
+  handleLEDIntensityChange
+}) => {
   return (
-    <GlobalCard
-      title={`LED ${led.id}`}
-      id={led.id}
-      type="LED"
-      status={led.status}
-      intensity={tempIntensity}
-      icon={<LEDLamp intensity={tempIntensity} />}
-      onToggle={toggleStatus}
-      onUpdate={saveIntensity}
-      
-    >
-      {/* Efeitos de Piscar nos Cantos */}
-      <AnimatePresence>
-        {led.status === "ON" ? (
-          <>
-            <motion.div
-              className={`absolute top-2 left-2 text-purple-500 font-bold ${intensityBlink ? "opacity-100" : "opacity-50"}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: intensityBlink ? 1 : 0.5 }}
-              transition={{ duration: 1 }}
-            >
-              {tempIntensity}%
-            </motion.div>
-            <motion.div
-              className={`absolute bottom-2 right-2 text-purple-500 font-bold ${intensityBlink ? "opacity-100" : "opacity-50"}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: intensityBlink ? 1 : 0.5 }}
-              transition={{ duration: 1 }}
-            >
-              {tempIntensity}%
-            </motion.div>
-          </>
-        ) : (
-          <>
-            <motion.div
-              className={`absolute top-2 left-2 text-purple-500 font-bold ${blink ? "opacity-100" : "opacity-50"}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: blink ? 1 : 0.5 }}
-              transition={{ duration: 1 }}
-            >
-              OFF
-            </motion.div>
-            <motion.div
-              className={`absolute bottom-2 right-2 text-purple-500 font-bold ${blink ? "opacity-100" : "opacity-50"}`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: blink ? 1 : 0.5 }}
-              transition={{ duration: 1 }}
-            >
-              OFF
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+    <div className="space-y-4">
+      <Card className="bg-gradient-to-b from-[#08060a] via-[#000000] to-[#08010f] rounded-lg border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow">
+        <CardHeader className="mb-2">
+          <CardTitle className="text-xl text-center text-gray-100">LEDs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {leds.map((led) => (
+              <div key={led.id} className="flex flex-col space-y-2">
+                {/* LED Card */}
+                <div
+                  className={clsx(
+                    "p-4 rounded-md transition-all duration-300 flex flex-col space-y-4 overflow-hidden bg-gradient-to-b from-gray-800 via-black to-gray-900 border-2",
+                    led.status === "ON" ? "border-purple-500" : "border-gray-700",
+                    isRecording && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  {/* LED Header with Toggle Button */}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-2xl font-bold text-white">LED {led.id}</h3>
+                    <Button
+                      onClick={() => handleLEDToggle(led.id)}
+                      disabled={!isConnected || isRecording}
+                      variant="ghost"
+                      className={clsx(
+                        "p-2 transition-all text-lg",
+                        led.status === "ON" ? "text-purple-500 hover:text-purple-600" : "text-gray-500 hover:text-gray-400"
+                      )}
+                      aria-label={`Toggle LED ${led.id}`}
+                    >
+                      {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
+                    </Button>
+                  </div>
 
-      {/* Controles Customizados */}
-      <div className="flex flex-col space-y-4 mt-8">
-        {/* Intensidade Principal */}
-        <div className="flex justify-center items-center">
-          <span className="text-xl text-purple-500 font-semibold">
-            {tempIntensity}%
-          </span>
-        </div>
+                  {/* LED Icon Display */}
+                  <div className="flex justify-center text-2xl w-full h-full animate-blink">
+                    <LEDIcon intensity={led.intensity} />
+                    <div className="flex items-center space-x-2">
+                      <span className={`text-[#7221bd] text-lg font-extrabold`}>
+                        {led.status}
+                      </span>
+                    </div>
+                  </div>
 
-        {/* Slider e Input de Intensidade */}
-        <div className="flex items-center space-x-2">
-          <CustomTooltip content="Adjust intensity percentage" placement="top">
-            <CustomSlider
-              value={tempIntensity}
-              onChange={handleIntensityChange}
-              min={0}
-              max={100}
-              step={0.01}
-              disabled={led.status === "OFF"}
-            />
-          </CustomTooltip>
-          <div className="relative">
-            <Input
-              type="number"
-              value={tempIntensity}
-              onChange={(e) => {
-                const value = parseFloat(e.target.value);
-                if (!isNaN(value)) {
-                  setTempIntensity(Math.min(100, Math.max(0, value)));
-                }
-              }}
-              className="w-20 text-sm bg-gray-700 text-white rounded-md"
-              min={0}
-              max={100}
-              step={0.01}
-              disabled={led.status === "OFF"}
-            />
-            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">%</span>
+                  {/* Intensity Slider and Input */}
+                  <div className="flex items-center space-x-4">
+                    <CustomTooltip content="Adjust Intensity (%)" placement="top">
+                      <CustomSlider
+                        value={tempIntensity}
+                        onChange={setTempIntensity}
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        disabled={!isConnected || led.status === "OFF" || isRecording}
+                      />
+                    </CustomTooltip>
+                    <CustomTooltip content="Set Intensity (%)" placement="top">
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          value={tempIntensity}
+                          onChange={(e) =>
+                            setTempIntensity(
+                              Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
+                            )
+                          }
+                          className="w-20 text-sm bg-gray-700 text-white rounded-md appearance-none"
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          disabled={!isConnected || led.status === "OFF" || isRecording}
+                          style={{ MozAppearance: "textfield" }}
+                          onWheel={(e) => e.currentTarget.blur()}
+                        />
+                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">%</span>
+                      </div>
+                    </CustomTooltip>
+                  </div>
+
+                  {/* Update LED Button */}
+                  <Button
+                    onClick={() => handleLEDIntensityChange(led.id, tempIntensity)}
+                    className="px-3 py-2 bg-[#7221bd] hover:bg-[#451f68] text-white rounded-md"
+                    disabled={!isConnected || led.status === "OFF" || isRecording}
+                  >
+                    Update
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-    </GlobalCard>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

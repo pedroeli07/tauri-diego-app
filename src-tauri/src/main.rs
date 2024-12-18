@@ -1,169 +1,201 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+// Prevents an additional console window on Windows in release builds.
+// DO NOT REMOVE!! This is essential for Tauri's window management on Windows.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+// Importing the `serial_wrapper` module which contains serial port handling functions.
 mod serial_wrapper;
-use serialport::SerialPort;
-use std::path::PathBuf;
-use std::sync::Mutex;
+
+// Importing necessary crates and modules.
+use serialport::SerialPort; // Trait for serial port operations.
+use std::path::PathBuf; // Struct for handling filesystem paths.
+use std::sync::Mutex; // Mutex for thread-safe data access.
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+    atomic::{AtomicBool, Ordering}, // AtomicBool for thread-safe boolean flags.
+    Arc, // Arc for shared ownership across threads.
 };
-use tauri::{Manager, State};
-// todo move into wrapper
-use rfd::FileDialog;
-use std::fs::File;
-use std::time::SystemTime;
-use chrono::{DateTime, Local};
+use tauri::{Manager, State}; // Tauri utilities for managing application state.
+use rfd::FileDialog; // File dialog for selecting folders.
+use std::fs::File; // Struct for file operations.
+use std::time::SystemTime; // Struct for handling system time.
+use chrono::{DateTime, Local}; // Crate for date and time handling.
 
-// todo move into Data struct
+// Struct representing serial port configuration items.
 pub struct PortItems {
-    port_path: String,
-    baud_rate: u32,
-    ending: String,
+    port_path: String, // Path to the serial port.
+    baud_rate: u32, // Baud rate for serial communication.
+    ending: String, // Line ending characters (e.g., "\n").
 }
 
-// todo change Data name because its lame
-// todo group data into sub structs or impl.
+// Struct representing the application's data state.
 pub struct Data {
-    // todo change to option
-    port: Option<Box<dyn SerialPort>>,
-    folder_path: Option<PathBuf>,
-    port_items: PortItems,
-    is_thread_open: Arc<AtomicBool>,
-    is_recording: bool,
-    // todo track currect menu itmes
+    port: Option<Box<dyn SerialPort>>, // Optional serial port.
+    folder_path: Option<PathBuf>, // Optional path to the recording folder.
+    port_items: PortItems, // Serial port configuration.
+    is_thread_open: Arc<AtomicBool>, // Flag indicating if the serial thread is running.
+    is_recording: bool, // Flag indicating if recording is active.
 }
 
+// Wrapper struct for thread-safe access to `Data` using a Mutex.
 pub struct AppData(Mutex<Data>);
 
+// Command to set serial port configuration items.
 #[tauri::command]
 fn set_port_items(state: State<AppData>, port: &str, baud: &str, ending: &str){
-    // unclock gaurd
-    let mut state_gaurd = state.0.lock().unwrap();
+    // Acquire the lock on the state.
+    let mut state_guard = state.0.lock().unwrap();
     
-    // store port items
-    // TODO change ending to update without port init
-    state_gaurd.port_items = PortItems {
+    // Update the port items with new values.
+    state_guard.port_items = PortItems {
         port_path: port.to_string(),
-        baud_rate: baud.to_string().parse::<u32>().unwrap(),
+        baud_rate: baud.to_string().parse::<u32>().unwrap(), // Parse baud rate from string to u32.
         ending: ending.to_string()
     };
 }
 
+// Command to handle serial port connection.
 #[tauri::command]
 fn handle_serial_connect(app: tauri::AppHandle) -> bool {
 
-    // clone the app
+    // Clone the app handle for use in the thread.
     let app_clone = app.clone();
-    // get the state
+    
+    // Retrieve the application state.
     let state = app_clone.state::<AppData>();
-    // unlock gaurd
-    let mut state_gaurd = state.0.lock().unwrap();
+    
+    // Acquire the lock on the state.
+    let mut state_guard = state.0.lock().unwrap();
 
-    // check if recording
-    if state_gaurd.is_recording {
+    // Check if the application is currently recording.
+    if state_guard.is_recording {
+        // Display an error message if recording is active.
         rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-        .set_title("Port Error")
-        .set_description("Please stop recording before disconnecting")
-        .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+        .set_title("Port Error") // Set the dialog title.
+        .set_description("Please stop recording before disconnecting") // Set the dialog description.
+        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
         .show();
         return true;
     }
 
-
-    // check port
-    match &state_gaurd.port {
-        // if port exists
+    // Check if a serial port is already connected.
+    match &state_guard.port {
+        // If a port exists, proceed to disconnect.
         Some(_) => {
-            // anounce killing the thread
-            println!("Killing thread");
-            // kill thread
-            state_gaurd.is_thread_open.store(false, Ordering::Relaxed);
-            // wait for change
-            while !state_gaurd.is_thread_open.load(Ordering::Relaxed) {}
-            // set the port as an none
-            state_gaurd.port = None;
-            return false;
+            println!("Killing thread"); // Log the action.
+            // Signal the thread to stop by setting the flag to false.
+            state_guard.is_thread_open.store(false, Ordering::Relaxed);
+            // Wait for the thread to acknowledge the stop signal.
+            while !state_guard.is_thread_open.load(Ordering::Relaxed) {}
+            // Remove the serial port from the state.
+            state_guard.port = None;
+            return false; // Indicate that the port has been disconnected.
         }
-        // start new port
+        // If no port is connected, attempt to connect.
         None => {
-            // start new port TODO make it not really long
-            let port = serial_wrapper::init_port(state_gaurd.port_items.port_path.to_string(), state_gaurd.port_items.baud_rate);
-            // check port success
+            // Initialize the serial port using the provided configuration.
+            let port = serial_wrapper::init_port(state_guard.port_items.port_path.to_string(), state_guard.port_items.baud_rate);
+            // Check if the port was successfully opened.
             match port {
                 Ok(port) => {
-                    // store report
+                    // Clone the port for thread usage.
                     let port_clone = port.try_clone().expect("Couldn't clone port");
-                    // store the port
-                    state_gaurd.port = Some(port);
-                    // clone the thread handle (copys a refrence)
-                    let is_thread_open_ref = state_gaurd.is_thread_open.clone();
-                    // use clone on thread
+                    // Store the port in the application state.
+                    state_guard.port = Some(port);
+                    // Clone the thread open flag for thread communication.
+                    let is_thread_open_ref = state_guard.is_thread_open.clone();
+                    // Start the serial reading thread.
                     serial_wrapper::start_clone_thread(app.clone(), port_clone, is_thread_open_ref);
                 }
                 Err(e) => {
-                    let error_description = format!("{}{}", "An error occured opening port: ", e);
+                    // Format the error message.
+                    let error_description = format!("{}{}", "An error occurred opening port: ", e);
+                    // Display the error message to the user.
                     rfd::MessageDialog::new()
-                        .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                        .set_title("Port Error")
-                        .set_description(error_description.as_str())
-                        .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                        .set_title("Port Error") // Set the dialog title.
+                        .set_description(error_description.as_str()) // Set the dialog description.
+                        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                         .show();
 
-                    return false;
+                    return false; // Indicate that the port connection failed.
                 }
             }
         }
     }
-    return true;
+    return true; // Indicate that the port connection was successful.
 }
 
-// TODO fix the most aweful nested code you've ever seen
-// kills current thread and starts recording
+// Command to handle serial port disconnection.
+#[tauri::command]
+fn handle_serial_disconnect(app: tauri::AppHandle) -> bool {
+    let app_clone = app.clone(); // Clone the app handle.
+    let state = app_clone.state::<AppData>(); // Retrieve the application state.
+    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
+
+    // Check if a serial port is currently connected.
+    if let Some(_) = &state_guard.port {
+        println!("Disconnecting serial port..."); // Log the action.
+
+        // Signal the thread to stop by setting the flag to false.
+        state_guard.is_thread_open.store(false, Ordering::Relaxed);
+
+        // Wait for the thread to acknowledge the stop signal.
+        while state_guard.is_thread_open.load(Ordering::Relaxed) {}
+
+        // Remove the serial port from the state.
+        state_guard.port = None;
+
+        println!("Serial port disconnected."); // Log the action.
+        return true; // Indicate successful disconnection.
+    } else {
+        println!("No serial port to disconnect."); // Log the absence of a connected port.
+        return false; // Indicate that there was no port to disconnect.
+    }
+}
+
+// Command to handle starting or stopping recording of serial data.
 #[tauri::command]
 fn handle_start_record(app: tauri::AppHandle) -> bool {
-    // clone the app
-    let app_clone = app.clone();
-    // get state from app
-    let state = app_clone.state::<AppData>();
-    // unlock gaurd
-    let mut state_gaurd = state.0.lock().unwrap();
-    println!("start handle record");
-    if !state_gaurd.is_recording {
-        // check port
-        match &state_gaurd.port {
+    let app_clone = app.clone(); // Clone the app handle.
+    let state = app_clone.state::<AppData>(); // Retrieve the application state.
+    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
+    println!("start handle record"); // Log the action.
+
+    // Check if recording is not currently active.
+    if !state_guard.is_recording {
+        // Check if a serial port is connected.
+        match &state_guard.port {
             Some(port) => {
-                // check if file exits
-                match &state_gaurd.folder_path {
+                // Check if a folder path has been set for recording.
+                match &state_guard.folder_path {
                     Some(path) => {
-                        // get the opened port
+                        // Clone the serial port for recording.
                         let port_clone = port.try_clone().unwrap();
-                        // clone thread ref
-                        let is_thread_open_ref = state_gaurd.is_thread_open.clone();
-                        // get the current system time
+                        let is_thread_open_ref = state_guard.is_thread_open.clone(); // Clone the thread open flag.
+
+                        // Get the current system time.
                         let system_time = SystemTime::now();
-                        // convert the system time to a DateTime object in the local timezone
+                        // Convert system time to a DateTime object in the local timezone.
                         let datetime: DateTime<Local> = system_time.into();
-                        // format the date and time as a string
+                        // Format the date and time as a string for the filename.
                         let formatted_date_time = datetime.format("%Y-%m-%d_%H.%M.%S").to_string();
-                        // format
+                        // Create the filename with the formatted date and time.
                         let file_name = format!("SerialWizard_{}.txt", formatted_date_time);
-                        // create file name
+                        // Combine the folder path and filename to get the full file path.
                         let file_path = path.join(file_name);
 
-                        let path_clone = path.clone();
-                        // create file
+                        let path_clone = path.clone(); // Clone the path for thread usage.
+                        // Attempt to create the file for recording.
                         let file = File::create(&file_path);
                         match file {
                             Ok(file) => {
-                                // kill thread
-                                state_gaurd.is_thread_open.store(false, Ordering::Relaxed);
-                                // wait for change // TODO add timRout
-                                while !state_gaurd.is_thread_open.load(Ordering::Relaxed) {}
-                                // recording
-                                state_gaurd.is_recording = true;
-                                // start serial on port
+                                // Signal the serial thread to stop.
+                                state_guard.is_thread_open.store(false, Ordering::Relaxed);
+                                // Wait for the thread to acknowledge the stop signal.
+                                while !state_guard.is_thread_open.load(Ordering::Relaxed) {}
+                                // Set the recording flag to true.
+                                state_guard.is_recording = true;
+                                // Start the recording thread with the cloned port and file.
                                 serial_wrapper::start_record_on_port(
                                     app.clone(),
                                     port_clone,
@@ -171,169 +203,183 @@ fn handle_start_record(app: tauri::AppHandle) -> bool {
                                     Some(file),
                                     path_clone
                                 );
-                                println!("finish start clone");
-                                return true;
+                                println!("finish start clone"); // Log the action.
+                                return true; // Indicate successful start of recording.
                             }
                             Err(e) => {
-                                state_gaurd.is_recording = false;
+                                // If file creation fails, reset the recording flag.
+                                state_guard.is_recording = false;
+                                // Format the error message.
                                 let error_description =
-                                    format!("{}{}", "An error occured creating file: ", e);
+                                    format!("{}{}", "An error occurred creating file: ", e);
+                                // Display the error message to the user.
                                 rfd::MessageDialog::new()
-                                    .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                                    .set_title("File Error")
-                                    .set_description(error_description.as_str())
-                                    .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                                    .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                                    .set_title("File Error") // Set the dialog title.
+                                    .set_description(error_description.as_str()) // Set the dialog description.
+                                    .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                                     .show();
-                                return false;
+                                return false; // Indicate failure to start recording.
                             }
                         }
                     }
                     None => {
-                        state_gaurd.is_recording = false;
+                        // If no folder path is set, reset the recording flag.
+                        state_guard.is_recording = false;
+                        // Display an error message to the user.
                         rfd::MessageDialog::new()
-                            .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                            .set_title("File Error")
-                            .set_description("File path not set.")
-                            .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                            .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                            .set_title("File Error") // Set the dialog title.
+                            .set_description("File path not set.") // Set the dialog description.
+                            .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                             .show();
-                        return false;
+                        return false; // Indicate failure to start recording.
                     }
                 }
             }
             None => {
-                state_gaurd.is_recording = false;
-                // must be connected to serial port to start recording
+                // If no serial port is connected, reset the recording flag.
+                state_guard.is_recording = false;
+                // Display an error message to the user.
                 rfd::MessageDialog::new()
-                    .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                    .set_title("Port Error")
-                    .set_description("Connect to port first.")
-                    .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                    .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                    .set_title("Port Error") // Set the dialog title.
+                    .set_description("Connect to port first.") // Set the dialog description.
+                    .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                     .show();
-                return false;
+                return false; // Indicate failure to start recording.
             }
         }
     }
-    // stop recording
-    state_gaurd.is_recording = false;
-    // set port to none
-    state_gaurd.port = None;
-    // kill thread
-    state_gaurd.is_thread_open.store(false, Ordering::Relaxed);
-    // wait for change // TODO add timeout
-    while !state_gaurd.is_thread_open.load(Ordering::Relaxed) {}
-    // drop the state_gaurd to restart serial connect
-    std::mem::drop(state_gaurd);
-    handle_serial_connect(app.clone());
-    return false;
+
+    // If already recording, proceed to stop recording.
+    state_guard.is_recording = false; // Reset the recording flag.
+    state_guard.port = None; // Remove the serial port from the state.
+    state_guard.is_thread_open.store(false, Ordering::Relaxed); // Signal the thread to stop.
+    // Wait for the thread to acknowledge the stop signal.
+    while !state_guard.is_thread_open.load(Ordering::Relaxed) {}
+    std::mem::drop(state_guard); // Drop the lock on the state.
+    handle_serial_connect(app.clone()); // Reconnect the serial port.
+    return false; // Indicate that recording has been stopped.
 }
 
+// Command to set the folder path for recordings.
 #[tauri::command]
 fn set_folder_path(state: State<AppData>){
-    // unclock gaurd
-    let mut state_gaurd = state.0.lock().unwrap();
-    // set the folder path
+    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
+    // Open a folder picker dialog starting at the root directory.
     let dir = FileDialog::new().set_directory("/").pick_folder();
-    // store the dir
-    state_gaurd.folder_path = dir;
+    // Store the selected directory in the state.
+    state_guard.folder_path = dir;
 }
 
+// Command to retrieve a list of available serial ports.
 #[tauri::command]
 fn get_ports() -> Vec<String> {
-    return serial_wrapper::list_ports();
+    return serial_wrapper::list_ports(); // Call the `list_ports` function from `serial_wrapper`.
 }
 
+// Command to emit an error message to the frontend.
 #[tauri::command]
 fn emit_error(input: String) {
     rfd::MessageDialog::new()
-    .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-    .set_title("Port Error")
-    .set_description(input.as_str())
-    .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+    .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+    .set_title("Port Error") // Set the dialog title.
+    .set_description(input.as_str()) // Set the dialog description.
+    .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
     .show();
-    
 }
 
+// Command to send a serial command to the connected device.
 #[tauri::command]
 fn send_serial(state: State<AppData>, input: String) {
-    let mut state_gaurd = state.0.lock().unwrap();
-    let input_format = format!("{}{}", input, state_gaurd.port_items.ending);
-    match &mut state_gaurd.port {
+    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
+    // Format the input with the configured line ending.
+    let input_format = format!("{}{}", input, state_guard.port_items.ending);
+    match &mut state_guard.port {
         Some(port) => {
+            // Attempt to write the formatted input to the serial port.
             let write = serial_wrapper::write_serial(port, input_format.as_str());
             match write {
                 Ok(s) => {
-                    println!("Write {} bytes success", s);
+                    println!("Write {} bytes success", s); // Log successful write.
                 }
                 Err(e) => {
+                    // If writing fails, format the error message.
                     let error_description =
-                        format!("{}{}", "An error occured writing to port: ", e);
+                        format!("{}{}", "An error occurred writing to port: ", e);
+                    // Display the error message to the user.
                     rfd::MessageDialog::new()
-                        .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                        .set_title("Write Error")
-                        .set_description(error_description.as_str())
-                        .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                        .set_title("Write Error") // Set the dialog title.
+                        .set_description(error_description.as_str()) // Set the dialog description.
+                        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                         .show();
                 }
             }
         }
         None => {
+            // If no serial port is connected, display an error message.
             rfd::MessageDialog::new()
-                .set_level(rfd::MessageLevel::Error) // Set the message level to indicate an error
-                .set_title("Port Error")
-                .set_description("Connect to port first.")
-                .set_buttons(rfd::MessageButtons::Ok) // Use OkCancel buttons
+                .set_level(rfd::MessageLevel::Error) // Set the message level to error.
+                .set_title("Port Error") // Set the dialog title.
+                .set_description("Connect to port first.") // Set the dialog description.
+                .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
                 .show();
         }
     }
 }
 
-
+// A simple greeting command for testing purposes.
 #[tauri::command]
 fn greet(name: &str) {
-    println!("Hello, {}!", name);
+    println!("Hello, {}!", name); // Print a greeting message to the console.
 }
 
-// make a new window
+// Command to create a new window in the application.
 #[tauri::command]
 async fn make_window(handle: tauri::AppHandle) {
+    // Build a new window named "Setup" pointing to the "/about" page.
     tauri::WindowBuilder::new(&handle, "Setup", tauri::WindowUrl::App("/about".into()))
-        .inner_size(500.0, 500.0)
-        .resizable(false)
-        .always_on_top(true)
-        .title("Setup")
-        .build()
-        .unwrap();
+        .inner_size(500.0, 500.0) // Set the window size.
+        .resizable(false) // Make the window non-resizable.
+        .always_on_top(true) // Keep the window always on top.
+        .title("Setup") // Set the window title.
+        .build() // Build the window.
+        .unwrap(); // Unwrap to handle potential errors.
 }
 
+// The main function where the Tauri application is initialized and run.
 fn main() {
 
-    // tauri builder
+    // Initialize the Tauri builder.
     tauri::Builder::default()
         .manage(AppData(
-            // create a new unintlized port
+            // Create a new, uninitialized Data instance wrapped in a Mutex for thread safety.
             Mutex::new(Data {
-                port: None,
-                folder_path: Some(PathBuf::from("/home")),
+                port: None, // No serial port connected initially.
+                folder_path: Some(PathBuf::from("/home")), // Default folder path for recordings.
                 port_items: PortItems {
-                    port_path: String::from(""),
-                    baud_rate: 0,
-                    ending: String::from("")
+                    port_path: String::from(""), // Empty port path initially.
+                    baud_rate: 0, // Baud rate set to 0 initially.
+                    ending: String::from("") // No line ending initially.
                 },
-                is_thread_open: Arc::new(AtomicBool::new(true)),
-                is_recording: false,
+                is_thread_open: Arc::new(AtomicBool::new(true)), // Thread flag set to true.
+                is_recording: false, // Not recording initially.
             }),
         ))
         .invoke_handler(tauri::generate_handler![
-            set_port_items,
-            handle_serial_connect,
-            handle_start_record,
-            set_folder_path,
-            greet,
-            get_ports,
-            send_serial,
-            make_window,
-            emit_error
+            set_port_items, // Handler for setting port items.
+            handle_serial_connect, // Handler for connecting to serial port.
+            handle_start_record, // Handler for starting/stopping recording.
+            set_folder_path, // Handler for setting the recording folder path.
+            greet, // Handler for greeting.
+            get_ports, // Handler for retrieving available serial ports.
+            send_serial, // Handler for sending serial commands.
+            make_window, // Handler for creating new windows.
+            emit_error, // Handler for emitting error messages.
+            handle_serial_disconnect // Handler for disconnecting serial port.
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .run(tauri::generate_context!()) // Run the Tauri application with the generated context.
+        .expect("error while running tauri application"); // Expect no errors during runtime.
 }
