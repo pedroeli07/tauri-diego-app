@@ -623,10 +623,11 @@ typedef struct {
   uint32_t value;        // VALUE (Little-endian)
   uint8_t end_char;      // END_CHAR (0x0A)
 } __attribute__((packed)) SerialCommand;
+```
 
 Utility Functions for Command Construction and Transmission
 Below are example functions in C for building and sending binary commands:
-```
+
 
 ```c
 #include <stdint.h>
