@@ -1869,6 +1869,146 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
 
 
 
+<table border="1" cellpadding="5" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Command ID</th>
+      <th>Tipo de Hardware</th>
+      <th>ID do Hardware</th>
+      <th>Ação/Descrição</th>
+      <th>Intervalo de Valores</th>
+      <th>Descrição do Valor</th>
+      <th>Exemplo de Sequência de Bytes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Comandos para LEDs -->
+    <tr>
+      <td>7</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Definir estado do LED (ON/OFF)</td>
+      <td>0 = OFF, 1 = ON</td>
+      <td>0: Desligado<br>1: Ligado</td>
+      <td>[7, 1, 1, 0, 0, 0, 10] (Liga LED 1)</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Definir intensidade do LED</td>
+      <td>0-100 (%)</td>
+      <td>Percentual de intensidade do LED</td>
+      <td>[8, 2, 28, 0, 0, 0, 10] (Intensidade 28% no LED 2)</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Atualização combinada de estado e intensidade do LED</td>
+      <td>Status: 0 = OFF, 1 = ON<br>Intensidade: 0-100 (%)</td>
+      <td>
+        Status: 0 = Desligado<br>
+        Status: 1 = Ligado<br>
+        Intensidade: Percentual de 0 a 100
+      </td>
+      <td>[9, 1, 1, 0, 0, 65, 10] (Liga LED 1 com 65% de intensidade)</td>
+    </tr>
+
+    <!-- Comandos para Motores -->
+    <tr>
+      <td>1</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Definir direção do motor</td>
+      <td>0 = CW, 1 = CCW</td>
+      <td>0: Sentido Horário (CW)<br>1: Sentido Anti-horário (CCW)</td>
+      <td>[1, 1, 0, 0, 0, 0, 10] (Direção CW no Motor 1)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Definir velocidade do motor</td>
+      <td>0-5000 Hz</td>
+      <td>Valor inteiro representando a velocidade em Hertz (Hz)</td>
+      <td>[2, 1, 2500, 0, 0, 0, 10] (Velocidade 2500 Hz no Motor 1)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Definir estado do motor (ON/OFF)</td>
+      <td>0 = OFF, 1 = ON</td>
+      <td>0: Desligado<br>1: Ligado</td>
+      <td>[3, 1, 1, 0, 0, 0, 10] (Liga Motor 1)</td>
+    </tr>
+
+    <!-- Comandos Gerais -->
+    <tr>
+      <td>4</td>
+      <td>Geral</td>
+      <td>0</td>
+      <td>Reset do Sistema</td>
+      <td>N/A</td>
+      <td>Comando para reiniciar o sistema</td>
+      <td>[4, 0, 0, 0, 0, 0, 10] (Reset do Sistema)</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Geral</td>
+      <td>0</td>
+      <td>Iniciar Produção</td>
+      <td>N/A</td>
+      <td>Comando para iniciar o modo de produção</td>
+      <td>[5, 0, 0, 0, 0, 0, 10] (Inicia Produção)</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Geral</td>
+      <td>0</td>
+      <td>Iniciar Gravação (Record)</td>
+      <td>N/A</td>
+      <td>Comando para iniciar a gravação de dados</td>
+      <td>[6, 0, 0, 0, 0, 0, 10] (Inicia Gravação)</td>
+    </tr>
+
+    <!-- Comandos para Barreiras de Luz (Light Barrier) -->
+    <tr>
+      <td>10</td>
+      <td>Light Barrier</td>
+      <td>1-2</td>
+      <td>Definir estado da Barreira de Luz (OK/ERROR)</td>
+      <td>0 = OK, 1 = ERROR</td>
+      <td>0: OK<br>1: Erro Detectado</td>
+      <td>[10, 1, 0, 0, 0, 0, 10] (Barreira de Luz 1 OK)</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>Light Barrier</td>
+      <td>1-2</td>
+      <td>Definir estado da Barreira de Luz com Detalhe</td>
+      <td>Status: 0 = OK, 1 = ERROR<br>Detalhe: 0-255</td>
+      <td>
+        Status: 0 = OK<br>
+        Status: 1 = Erro Detectado<br>
+        Detalhe: Código de erro ou informação adicional
+      </td>
+      <td>[11, 1, 1, 0, 0, 255, 10] (Barreira de Luz 1 ERROR com detalhe 255)</td>
+    </tr>
+
+    <!-- Comandos de Erro -->
+    <tr>
+      <td>12</td>
+      <td>Erro</td>
+      <td>0</td>
+      <td>Emitir Erro para Teste</td>
+      <td>N/A</td>
+      <td>Comando para simular um erro no sistema</td>
+      <td>[12, 0, 0, 0, 0, 0, 10] (Emitir Erro)</td>
+    </tr>
+  </tbody>
+</table>
 
 
 
