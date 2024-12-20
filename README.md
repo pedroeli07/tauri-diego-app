@@ -2003,6 +2003,137 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
 
 
 
+<table border="1" cellpadding="5" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Command ID</th>
+      <th>Hardware Type</th>
+      <th>Hardware ID</th>
+      <th>Action/Description</th>
+      <th>Value Range</th>
+      <th>Value Description</th>
+      <th>Example Byte Sequence</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>7</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Set LED State (ON/OFF)</td>
+      <td>0 = OFF, 1 = ON</td>
+      <td>0: Off<br>1: On</td>
+      <td>[7, 1, 1, 0, 0, 0, 10] (Turn ON LED 1)</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Set LED Intensity</td>
+      <td>0-100 (%)</td>
+      <td>Percentage of LED intensity</td>
+      <td>[8, 2, 28, 0, 0, 0, 10] (Set LED 2 intensity to 28%)</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>LED</td>
+      <td>1-4</td>
+      <td>Combined LED State and Intensity Update</td>
+      <td>Status: 0 = OFF, 1 = ON<br>Intensity: 0-100 (%)</td>
+      <td>
+        Status: 0 = Off<br>
+        Status: 1 = On<br>
+        Intensity: 0-100%
+      </td>
+      <td>[9, 1, 1, 0, 0, 65, 10] (Turn ON LED 1 with 65% intensity)</td>
+    </tr>
+    <tr>
+      <td>1</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Set Motor Direction</td>
+      <td>0 = CW, 1 = CCW</td>
+      <td>0: Clockwise (CW)<br>1: Counter-Clockwise (CCW)</td>
+      <td>[1, 1, 0, 0, 0, 0, 10] (Set Motor 1 direction to CW)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Set Motor Speed</td>
+      <td>0-5000 Hz</td>
+      <td>Integer value representing speed in Hertz (Hz)</td>
+      <td>[2, 1, 2500, 0, 0, 0, 10] (Set Motor 1 speed to 2500 Hz)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Motor</td>
+      <td>1-3</td>
+      <td>Set Motor State (ON/OFF)</td>
+      <td>0 = OFF, 1 = ON</td>
+      <td>0: Off<br>1: On</td>
+      <td>[3, 1, 1, 0, 0, 0, 10] (Turn ON Motor 1)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>General</td>
+      <td>0</td>
+      <td>System Reset</td>
+      <td>N/A</td>
+      <td>Command to reset the system</td>
+      <td>[4, 0, 0, 0, 0, 0, 10] (System Reset)</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>General</td>
+      <td>0</td>
+      <td>Start Production Mode</td>
+      <td>N/A</td>
+      <td>Command to initiate production mode</td>
+      <td>[5, 0, 0, 0, 0, 0, 10] (Start Production)</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>General</td>
+      <td>0</td>
+      <td>Start Recording</td>
+      <td>N/A</td>
+      <td>Command to start data recording</td>
+      <td>[6, 0, 0, 0, 0, 0, 10] (Start Recording)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Light Barrier</td>
+      <td>1-2</td>
+      <td>Set Light Barrier State (OK/ERROR)</td>
+      <td>0 = OK, 1 = ERROR</td>
+      <td>0: OK<br>1: Error Detected</td>
+      <td>[10, 1, 0, 0, 0, 0, 10] (Set Light Barrier 1 to OK)</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>Light Barrier</td>
+      <td>1-2</td>
+      <td>Set Light Barrier Detailed Status</td>
+      <td>Status: 0 = OK, 1 = ERROR<br>Detail: 0-255</td>
+      <td>
+        Status: 0 = OK<br>
+        Status: 1 = Error Detected<br>
+        Detail: Error code or additional information
+      </td>
+      <td>[11, 1, 1, 0, 0, 255, 10] (Set Light Barrier 1 to ERROR with detail 255)</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>Error</td>
+      <td>0</td>
+      <td>Emit Test Error</td>
+      <td>N/A</td>
+      <td>Command to simulate a system error for testing purposes</td>
+      <td>[12, 0, 0, 0, 0, 0, 10] (Emit Test Error)</td>
+    </tr>
+  </tbody>
+</table>
 
 
 
