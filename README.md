@@ -288,15 +288,147 @@ bun tauri:build
 
 ---
 
-### 3. **Logging and Exporting**
+## 2. Control Hardware Components
 
-- View **real-time logs** in the **Debug Box**.  
-- Export logs in your preferred format:
-   - **CSV**  
-   - **PDF**  
-   - **Excel**  
+### 🔌 Connection to the Serial Port
 
-   Use the **Export** buttons to download the logs.
+#### Without Connection:
+- **Controls Disabled:** All controls (buttons, sliders, input fields) will be disabled, preventing any interaction with the hardware components.
+- **Visual Indication:** A notification or indicator on the interface will inform that no port is connected.
+
+#### With Connection:
+- **Controls Enabled:** Upon connecting the serial port, the controls will be activated, allowing you to interact with LEDs, motors, and other components.
+- **Connection Feedback:** The interface will display the connection status, indicating that it is ready for use.
+
+### 🟢 LEDs
+
+#### Control Methods:
+
+##### On/Off Button:
+- **Turn On LED:** Click the **ON** button to immediately light up the LED.
+- **Turn Off LED:** Click the **OFF** button to turn off the LED.
+
+##### Intensity Adjustment:
+- **Select Intensity:** Use the slider or input field to set the desired LED intensity.
+- **Confirm Changes:** After selecting the intensity, click the **Update** icon to apply the changes.
+
+##### Command Sending:
+- **Sending Commands:** Actions to turn on/off or adjust intensity send commands via the serial port to the printer.
+- **Interface Confirmation:** Once the printer receives and processes the command, the LED status and intensity will be updated in the graphical user interface (GUI).
+
+### ⚙️ Motors
+
+#### Control Methods:
+
+##### Start/Stop Motor:
+- **Start Motor:** Click the **Start** button to immediately start the motor.
+- **Stop Motor:** Click the **Stop** button to stop the motor.
+
+##### Speed and Direction Adjustment:
+- **Set Speed:** Use the slider or input field to define the motor speed.
+- **Select Direction:** Toggle the direction between **CW** (clockwise) and **CCW** (counter-clockwise) by clicking the direction button.
+- **Confirm Changes:** After setting the speed and direction, click the **Update** icon to apply the changes.
+
+##### Command Sending:
+- **Sending Commands:** Actions to start/stop or adjust speed/direction send commands via the serial port to the printer.
+- **Interface Confirmation:** Once the printer receives and processes the command, the motor status, speed, and direction will be updated in the graphical user interface (GUI).
+
+### 💡 Light Barriers
+
+#### Real-Time Monitoring:
+- **Visual Indicators:** The status of the light barriers is monitored in real-time with colored indicators on the interface.
+
+#### Indicator Colors:
+- 🟢 **Green:** Status OK
+- 🟡 **Yellow:** Warning
+- 🔴 **Red:** Error
+
+#### Log Filters:
+- Use the filters in the **Debug Box** to view specific logs related to the light barriers.
+
+## 3. Logging and Exporting
+
+### 🔍 Real-Time Log Viewing in the Debug Box
+
+#### View Logs:
+- **Real-Time Monitoring:** Track logs in real-time in the **Debug Box**, providing insights into system operations and interactions with hardware components as they occur.
+
+#### Log Filters:
+
+##### Advanced Filtering:
+- **Filtering Criteria:** Use filters to refine log viewing based on criteria such as log level (**Info**, **Warning**, **Error**), component (**LEDs**, **Motors**, **Light Barriers**), or status.
+
+##### Easy Navigation:
+- **Simplified Navigation:** Filters allow you to quickly find relevant logs, facilitating diagnosis and problem resolution.
+
+#### Colored Logs:
+- 🟢 **Green:** Information about normal operations.
+- 🟡 **Yellow:** Warnings about potential issues that require attention.
+- 🔴 **Red:** Critical errors that need immediate resolution.
+- 🔵 **Blue:** Debug messages for detailed analysis.
+
+### 📁 Log Exporting
+
+#### Available Formats:
+Export your logs in the following formats:
+- **CSV**
+- **PDF**
+- **Excel**
+
+#### How to Export:
+
+##### Export Buttons:
+- **Export Logs:** Click the **Export CSV**, **Export PDF**, or **Export Excel** buttons to download the logs in the desired format.
+
+##### Using Exported Logs:
+- **Analysis and Reporting:** Use the exported logs for external analysis, reports, or audits as needed.
+
+### Operation Logic
+
+#### Connection to the Serial Port:
+
+##### Before Connection:
+- **Controls Disabled:** All controls are disabled, preventing interactions with the hardware components.
+- **Connection Indicator:** The interface will display an indicator that no port is connected.
+
+##### After Connection:
+- **Controls Enabled:** Controls are activated, allowing interaction with LEDs, motors, and other components.
+- **Status Update:** The interface updates to reflect the connection status, indicating it is ready for use.
+
+#### Component Control:
+
+##### Dual Control Methods:
+
+###### Direct Control:
+- **LEDs:** Click the **ON/OFF** buttons to immediately turn LEDs on or off.
+- **Motors:** Click the **Start/Stop** buttons to immediately start or stop the motors.
+
+###### Adjustment Control:
+- **LEDs:** Adjust the intensity using sliders or input fields and click **Update** to apply the change.
+- **Motors:** Adjust the speed and direction using sliders or input fields and click **Update** to apply the changes.
+
+##### Command Sending:
+- **Communication with Printer:** Control actions send commands via the serial port to the printer.
+
+##### Confirmation and Feedback:
+- **Printer Response:** Once the printer receives and processes the command, it sends a response.
+- **Interface Update:** The graphical user interface (GUI) automatically updates the status and settings of the components based on the received response, ensuring the interface reflects the actual hardware state.
+
+## 4. Logging and Exporting
+
+*(If the "Logging and Exporting" section is section 3, you can renumber as needed.)*
+
+## Final Considerations
+
+- **Stable Connection:**
+  - Maintain a stable connection to the serial port to ensure effective communication between the interface and hardware components.
+
+- **Log Monitoring:**
+  - Use the **Debug Box** to monitor and analyze logs, facilitating the detection and resolution of issues.
+
+- **Real-Time Feedback:**
+  - The interface automatically updates the status of components based on the printer's responses, providing a dynamic and responsive user experience.
+
 
 ---
 
