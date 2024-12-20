@@ -442,25 +442,34 @@ With these features, you can efficiently control, monitor, and debug your 3D pri
 
 ---
 
-## Serial Communication Protocol (Binary Format)
+# Serial Communication Protocol (Binary Format)
 
-With the transition to a binary-based communication protocol, the **DCubed 3D Printer Controller Developer** application now interacts with the printer's firmware using fixed-length binary messages rather than delimited ASCII strings. This approach enhances efficiency, consistency, and reduces the likelihood of communication errors.
+With the transition to a binary-based communication protocol, the DCubed 3D Printer Controller Developer application now interacts with the printer's firmware using fixed-length 7-byte binary messages instead of delimited ASCII strings. This approach enhances efficiency, consistency, and reduces the likelihood of communication errors.
 
-### Overview
-
+## Overview
 - **Protocol Type:** Binary (7-byte fixed-length messages)
-- **Purpose:** Control hardware components (LEDs, Motors) and handle system-level commands
-- **Compatibility:** Hybrid approach using binary for hardware-related commands and ASCII for system-level commands (e.g., `RESET`, `PRODUCTION_MODE`)
+- **Purpose:** To control hardware components (LEDs, Motors) and handle system-level commands.
+- **Compatibility:** Hybrid approach using binary for hardware-related commands and ASCII for system-level commands (e.g., RESET, PRODUCTION_MODE).
 
-### Command Structure (Binary)
-
-All commands sent from the application to the 3D printer's firmware adhere to a 7-byte binary format:
+## Command Structure (Binary)
+All commands sent from the application to the printer firmware follow a fixed 7-byte binary format:
 
 ```plaintext
 [COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
 ```
+### Field Descriptions:
+- **COMMAND_ID (1 byte):** Numeric identifier representing the type of command (e.g., turn LED on/off, motor state).
+- **HARDWARE_ID (1 byte):** Numeric ID of the specific hardware component (e.g., LED number, Motor number).
+- **VALUE (4 bytes, little-endian):** 32-bit unsigned integer representing the value of the parameter.
+  - **LEDs:** Intensity (0-100)
+  - **Motors:** Speed (0-5000), Direction (0 or 1), State (0 or 1)
+- **END_CHAR (1 byte):** Newline character (0x0A) indicating the end of the command.
 
-
+### Example: Turn on LED 3 at 100% intensity
+- **COMMAND_ID:** 7 (LED State)
+- **HARDWARE_ID:** 3 (LED Number)
+- **VALUE:** 100 (0x64 in hexadecimal)
+- **Binary Message:** 
 - **COMMAND_ID**: A numeric identifier representing the type of command (e.g., LED on/off, motor state).
 - **HARDWARE_ID**: Numeric ID of the specific hardware component (e.g., LED number, Motor number).
 - **VALUE**: A 32-bit unsigned integer (4 bytes, little-endian) representing the parameter's value.
@@ -468,96 +477,198 @@ All commands sent from the application to the 3D printer's firmware adhere to a 
   - For Motors: speed (0-5000), direction (0 or 1), state (0 or 1)
 - **'\n' (0x0A)**: A newline character (1 byte) indicating the end of the command.
 
-**Example:** Turning LED 3 on with intensity 100% might be:
-- COMMAND_ID for LED ON/OFF = 7
-- HARDWARE_ID = 3
-- VALUE = 100 (0x64)
-
 The final 7-byte message could look like:
-`[7, 3, 100, 0, 0, 0, 0x0A]`
+`[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A`
 
 Here, `100` is stored as `0x64 0x00 0x00 0x00` in little-endian form:
 `[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
 
-### Command IDs
+## Detailed Command Table
 
-<div> <table> <thead> <tr> <th>Byte Position</th> <th>Field</th> <th>Size</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>0</td> <td>COMMAND_ID</td> <td>1 byte</td> <td>Numeric identifier for the command type (e.g., LED on/off, motor state)</td> </tr> <tr> <td>1</td> <td>HARDWARE_ID</td> <td>1 byte</td> <td>Numeric ID of the specific hardware component (e.g., LED number, Motor number)</td> </tr> <tr> <td>2-5</td> <td>VALUE</td> <td>4 bytes</td> <td> 32-bit unsigned integer (little-endian) representing the parameter's value <ul> <li>**LEDs:** Intensity (0-100)</li> <li>**Motors:** Speed (0-5000), Direction (0 or 1), State (0 or 1)</li> </ul> </td> </tr> <tr> <td>6</td> <td>END_CHAR</td> <td>1 byte</td> <td>Newline character (`0x0A`) indicating the end of the command</td> </tr> </tbody> </table> </div>
+<table border="1" cellspacing="0" cellpadding="5">
+  <thead>
+    <tr>
+      <th>COMMAND_ID</th>
+      <th>Action</th>
+      <th>HARDWARE_ID</th>
+      <th>VALUE Interpretation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Motor Direction</td>
+      <td>Motor ID</td>
+      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Motor Speed</td>
+      <td>Motor ID</td>
+      <td>Speed in Hz (0-5000)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Motor State</td>
+      <td>Motor ID</td>
+      <td>0 = OFF, 1 = ON</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>LED State</td>
+      <td>LED ID</td>
+      <td>0 = OFF, 1 = ON</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>LED Intensity</td>
+      <td>LED ID</td>
+      <td>Intensity Level (0-100)</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>LED Combined Update</td>
+      <td>LED ID</td>
+      <td>Combination of state and intensity: (Intensity << 16) | State</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Motor Toggle State</td>
+      <td>Motor ID</td>
+      <td>0 = OFF, 1 = ON</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>Adjust Motor Speed</td>
+      <td>Motor ID</td>
+      <td>Speed in Hz (0-5000)</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>Motor Toggle Direction</td>
+      <td>Motor ID</td>
+      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+    </tr>
+    <tr>
+      <td>0x01</td>
+      <td>Reset</td>
+      <td>0x00</td>
+      <td>RESET\n (legacy ASCII command)</td>
+    </tr>
+    <tr>
+      <td>0x02</td>
+      <td>Production Mode</td>
+      <td>0x00</td>
+      <td>PRODUCTION_MODE\n (legacy ASCII command)</td>
+    </tr>
+    <tr>
+      <td>0x04</td>
+      <td>Record Serial</td>
+      <td>0x00</td>
+      <td>RECORD_SERIAL\n or STOP_RECORD_SERIAL\n (ASCII)</td>
+    </tr>
+  </tbody>
+</table>
 
-Example Command
+**Note:** Commands like RESET, PRODUCTION_MODE, RECORD_SERIAL, and STOP_RECORD_SERIAL remain ASCII-based for compatibility and simplicity. The binary protocol is primarily used for hardware-related commands (LED, Motor, Light Barrier).
 
-Turning LED 3 On with Intensity 100%
+## Command Bit Structure
 
-COMMAND_ID: 7 (LED State)
-HARDWARE_ID: 3 (LED Number)
-VALUE: 100 (0x64 in hexadecimal)
-END_CHAR: 0x0A
+For a deeper understanding, below is the bit-level specification for each command:
 
-Binary Representation:
+| Field         | Bit Range | Description                                    |
+|---------------|-----------|------------------------------------------------|
+| **COMMAND_ID** | 0-7       | Identifies the type of command (e.g., LED, Motor) |
+| **HARDWARE_ID**| 8-15      | Specifies the target hardware component        |
+| **VALUE**      | 16-47     | Parameter value (interpreted based on COMMAND_ID) |
+| **END_CHAR**   | 48-55     | Newline character (0x0A) to end the command    |
 
-```plaintext
-[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0
-```
-Command IDs
+### Example Command
 
-<div> <table> <thead> <tr> <th>Action</th> <th>Command ID</th> <th>Value Interpretation</th> </tr> </thead> <tbody> <tr> <td>LED State</td> <td>7</td> <td>0 = OFF, 1 = ON</td> </tr> <tr> <td>LED Intensity</td> <td>8</td> <td>Intensity Level (0-100)</td> </tr> <tr> <td>Motor Direction</td> <td>1</td> <td>0 = CW (Clockwise), 1 = CCW (Counter-Clockwise)</td> </tr> <tr> <td>Motor Speed</td> <td>2</td> <td>Speed in Hz (0-5000)</td> </tr> <tr> <td>Motor State</td> <td>3</td> <td>0 = OFF, 1 = ON</td> </tr> <tr> <td>Light Barrier</td> <td>-</td> <td>Firmware uses `LIGHT_BARRIER` in responses</td> </tr> <tr> <td>Reset</td> <td>-</td> <td>Sent as legacy ASCII: `RESET\n`</td> </tr> <tr> <td>Production Mode</td> <td>-</td> <td>Sent as legacy ASCII: `PRODUCTION_MODE\n`</td> </tr> <tr> <td>Record Serial</td> <td>-</td> <td>`RECORD_SERIAL\n` ou `STOP_RECORD_SERIAL\n`</td> </tr> <tr> <td>Error</td> <td>-</td> <td>`ERROR|...` mensagem ASCII, se necessário</td> </tr> </tbody> </table> </div>
-Note: Commands like RESET, PRODUCTION_MODE, RECORD_SERIAL, and STOP_RECORD_SERIAL remain ASCII-based for compatibility and simplicity. The binary protocol is primarily for hardware-related commands (LED, Motor, Light Barrier).
-
-Bit-Level Command Specification
-
-To provide an in-depth understanding, here's a bit-level specification of each command:
-
-<div> <table> <thead> <tr> <th>Field</th> <th>Bit Range</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>COMMAND_ID</td> <td>0</td> <td>Identifies the type of command (e.g., LED, Motor)</td> </tr> <tr> <td>HARDWARE_ID</td> <td>8</td> <td>Specifies the target hardware component</td> </tr> <tr> <td>VALUE</td> <td>16-47</td> <td>Parameter value (interpreted based on COMMAND_ID)</td> </tr> <tr> <td>END_CHAR</td> <td>48-55</td> <td>Fixed newline character (`0x0A`) to signify end of command</td> </tr> </tbody> </table> </div>
-Responses
-
-Firmware responses utilize a similar binary structure for hardware states. However, ERROR and some legacy responses (ACK) are still ASCII-based for quick issue identification and acknowledgments.
-
-Firmware Response Formats
-
-LED Updates:
-**Note:** Some commands like `RESET`, `PRODUCTION_MODE`, `RECORD_SERIAL`, and `STOP_RECORD_SERIAL` remain ASCII-based for compatibility and simplicity. The binary protocol is primarily for hardware-related commands (LED, Motor, Light Barrier).
-
-### Responses
-
-The firmware responds to commands and events using a similar binary approach for hardware states. However, `ERROR` and some legacy responses (`ACK`) may still be ASCII-based to quickly indicate issues or acknowledgments. This hybrid approach simplifies debugging and handling unexpected conditions.
-
-**Firmware Response Format for Hardware:**
-- **For LED updates:**
-  `[7, HARDWARE_ID, INTENSITY (4 bytes), 0x0A]`
-  - `COMMAND_ID=7` for LED state and intensity feedback.
-  - The VALUE field indicates the current intensity if ON (1), or 0 if OFF.
-  - The firmware might send the LED's state by setting VALUE=1 for ON and then another command with COMMAND_ID=8 for intensity, or combine the logic by always reporting intensity.
-
-- **For LED Intensity (COMMAND_ID=8):**
-  `[8, HARDWARE_ID, VALUE (4 bytes), 0x0A]`
-  - VALUE represents intensity (0-100).
-
-- **For Motor State/Speed/Direction:**
-  The firmware might send multiple commands to report each property separately. For example:
-  - **Motor State (COMMAND_ID=3):**
-    `[3, HARDWARE_ID, STATE (0 or 1), 0, 0, 0, 0x0A]`
-  - **Motor Speed (COMMAND_ID=2):**
-    `[2, HARDWARE_ID, SPEED (0-5000), ..., 0x0A]`
-  - **Motor Direction (COMMAND_ID=1):**
-    `[1, HARDWARE_ID, DIR (0 or 1), ..., 0x0A]`
-
-- **For Light Barrier:**
-  The firmware can still send `LIGHT_BARRIER|ID|OK\n` or `LIGHT_BARRIER|ID|ERROR\n` as ASCII.
-  
-  Or, if upgraded to binary in the future, a dedicated COMMAND_ID could be assigned.
-
-**Error Messages (ASCII):**
-If the firmware receives an invalid command or cannot process it, it returns:
-`ERROR|<DESCRIPTION>\n`
-- e.g., `ERROR|Invalid command for LED 1\n`
-
-**ACK Messages (ASCII):**
-Upon successful processing of some legacy commands like `RESET` or `PRODUCTION_MODE`, the firmware responds with:
-`ACK|<COMMAND>\n`
-- e.g., `ACK|RESET\n`
-
-This mixed-response approach (binary for hardware, ASCII for system-level commands and errors) provides flexibility and easier debugging.
-
+- **Command:** Turn on LED 3 at 100% intensity
+  - **COMMAND_ID:** 7 (LED State)
+  - **HARDWARE_ID:** 3 (LED Number)
+  - **VALUE:** 100 (0x64 in hexadecimal)
+  - **END_CHAR:** 0x0A
+  - **Binary Message:**
+ 
+`[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
 ---
+
+## Command Table for C/C++ Developers
+
+To aid development in C or C++, below are enumerator definitions and structs representing the binary communication protocol:
+
+```c
+// Command ID Definitions
+typedef enum {
+  CMD_RESET = 0x01,
+  CMD_PRODUCTION_MODE = 0x02,
+  CMD_RECORD_SERIAL = 0x04,
+  CMD_MOTOR_DIRECTION = 0x01,
+  CMD_MOTOR_SPEED = 0x02,
+  CMD_MOTOR_STATE = 0x03,
+  CMD_LED_STATE = 0x07,
+  CMD_LED_INTENSITY = 0x08,
+  CMD_LED_COMBINED_UPDATE = 0x09,
+  CMD_MOTOR_TOGGLE_STATE = 0x0A,
+  CMD_MOTOR_ADJUST_SPEED = 0x0B,
+  CMD_MOTOR_TOGGLE_DIRECTION = 0x0C
+} CommandID;
+
+// Binary Command Structure
+typedef struct {
+  uint8_t command_id;    // COMMAND_ID
+  uint8_t hardware_id;   // HARDWARE_ID
+  uint32_t value;        // VALUE (Little-endian)
+  uint8_t end_char;      // END_CHAR (0x0A)
+} __attribute__((packed)) SerialCommand;
+
+Utility Functions for Command Construction and Transmission
+Below are example functions in C for building and sending binary commands:
+
+c
+Copiar código
+#include <stdint.h>
+#include <string.h>
+
+// Convert integer to little-endian format
+uint32_t to_little_endian(uint32_t value) {
+    uint32_t little_endian = 0;
+    little_endian |= (value & 0x000000FF) << 0;
+    little_endian |= (value & 0x0000FF00) << 8;
+    little_endian |= (value & 0x00FF0000) << 16;
+    little_endian |= (value & 0xFF000000) >> 24;
+    return little_endian;
+}
+
+// Build command
+void build_command(SerialCommand* cmd, uint8_t command_id, uint8_t hardware_id, uint32_t value) {
+    cmd->command_id = command_id;
+    cmd->hardware_id = hardware_id;
+    cmd->value = to_little_endian(value);
+    cmd->end_char = 0x0A;
+}
+
+// Send command via serial
+// Actual serial communication implementation will be needed
+int send_serial_command(SerialCommand* cmd) {
+    // Example send (depends on serial communication library used)
+    // You'll need to implement actual sending through the serial port
+    return 1; // Return 1 for success, 0 for failure
+}
+
+// Example usage
+int main() {
+    SerialCommand cmd;
+    build_command(&cmd, CMD_LED_STATE, 3, 1); // Turn on LED 3
+    if(send_serial_command(&cmd)) {
+        // Command sent successfully
+    } else {
+        // Failed to send command
+    }
+    return 0;
+}
 
 ## 🛠️ C/C++ Integration Guide (Binary Protocol)
 
