@@ -1882,7 +1882,6 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
     </tr>
   </thead>
   <tbody>
-    <!-- Comandos para LEDs -->
     <tr>
       <td>7</td>
       <td>LED</td>
@@ -1914,8 +1913,6 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
       </td>
       <td>[9, 1, 1, 0, 0, 65, 10] (Liga LED 1 com 65% de intensidade)</td>
     </tr>
-
-    <!-- Comandos para Motores -->
     <tr>
       <td>1</td>
       <td>Motor</td>
@@ -1943,8 +1940,6 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
       <td>0: Desligado<br>1: Ligado</td>
       <td>[3, 1, 1, 0, 0, 0, 10] (Liga Motor 1)</td>
     </tr>
-
-    <!-- Comandos Gerais -->
     <tr>
       <td>4</td>
       <td>Geral</td>
@@ -1972,8 +1967,6 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
       <td>Comando para iniciar a gravação de dados</td>
       <td>[6, 0, 0, 0, 0, 0, 10] (Inicia Gravação)</td>
     </tr>
-
-    <!-- Comandos para Barreiras de Luz (Light Barrier) -->
     <tr>
       <td>10</td>
       <td>Light Barrier</td>
