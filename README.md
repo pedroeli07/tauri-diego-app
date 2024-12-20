@@ -2061,7 +2061,7 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
 
 
 
-<table border="1" cellspacing="0" cellpadding="10">
+<table>
   <thead>
     <tr>
       <th>COMMAND_ID</th>
