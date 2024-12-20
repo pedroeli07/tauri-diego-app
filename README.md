@@ -343,10 +343,12 @@ bun tauri:build
 - 🟡 **Yellow:** Warning
 - 🔴 **Red:** Error
 
-#### Log Filters:
-- Use the filters in the **Debug Box** to view specific logs related to the light barriers.
+
 
 ## 3. Logging and Exporting
+
+#### Log Filters:
+- Use the filters in the **Debug Box** to view specific logs related to the light barriers.
 
 ### 🔍 Real-Time Log Viewing in the Debug Box
 
@@ -414,9 +416,6 @@ Export your logs in the following formats:
 - **Printer Response:** Once the printer receives and processes the command, it sends a response.
 - **Interface Update:** The graphical user interface (GUI) automatically updates the status and settings of the components based on the received response, ensuring the interface reflects the actual hardware state.
 
-## 4. Logging and Exporting
-
-*(If the "Logging and Exporting" section is section 3, you can renumber as needed.)*
 
 ## Final Considerations
 
@@ -443,16 +442,22 @@ With these features, you can efficiently control, monitor, and debug your 3D pri
 
 ---
 
-## Serial Communication Protocol 
+## Serial Communication Protocol (Binary Format)
 
-Effective communication between the **DCubed 3D Printer Controller Developer** application and the 3D printer's hardware is facilitated through a well-defined serial communication protocol. Understanding this protocol is crucial for developers aiming to integrate or extend functionalities, especially when interfacing directly with the printer's firmware.
+With the transition to a binary-based communication protocol, the **DCubed 3D Printer Controller Developer** application now interacts with the printer's firmware using fixed-length binary messages rather than delimited ASCII strings. This approach allows for more efficient, consistent, and less error-prone communication.
 
-### Command Structure
+### Command Structure (Binary)
 
-All commands sent from the application to the 3D printer's firmware adhere to a structured format to ensure consistency and reliability. Each command is a string composed of multiple parts, separated by the pipe (`|`) character, and terminated with a newline character (`\n`). This structure allows the firmware to parse and interpret commands accurately.
+All commands from the application to the 3D printer's firmware follow a 7-byte binary format:
+
+
 
 **General Format:**
-COMMAND|ID|STATE|PARAMETER|VALUE\n
+[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
+
+markdown
+Copiar código
+
 
 markdown
 Copiar código
