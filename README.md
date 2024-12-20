@@ -458,7 +458,7 @@ All commands sent from the application to the 3D printer's firmware adhere to a 
 
 ```plaintext
 [COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
-
+```
 
 
 - **COMMAND_ID**: A numeric identifier representing the type of command (e.g., LED on/off, motor state).
@@ -481,69 +481,7 @@ Here, `100` is stored as `0x64 0x00 0x00 0x00` in little-endian form:
 
 ### Command IDs
 
-<div>
-  <table>
-    <thead>
-      <tr>
-        <th>Action</th>
-        <th>Command ID</th>
-        <th>Value Interpretation</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>LED State</td>
-        <td>7</td>
-        <td>0 = OFF, 1 = ON</td>
-      </tr>
-      <tr>
-        <td>LED Intensity</td>
-        <td>8</td>
-        <td>Intensity (0-100)</td>
-      </tr>
-      <tr>
-        <td>Motor Direction</td>
-        <td>1</td>
-        <td>0 = CW, 1 = CCW</td>
-      </tr>
-      <tr>
-        <td>Motor Speed</td>
-        <td>2</td>
-        <td>Speed in Hz (0-5000)</td>
-      </tr>
-      <tr>
-        <td>Motor State</td>
-        <td>3</td>
-        <td>0 = OFF, 1 = ON</td>
-      </tr>
-      <tr>
-        <td>Light Barrier</td>
-        <td>(Firmware Reports)</td>
-        <td>Firmware uses `LIGHT_BARRIER` in responses</td>
-      </tr>
-      <tr>
-        <td>Reset</td>
-        <td>(String Command)</td>
-        <td>Sent as legacy ASCII: `RESET\n`</td>
-      </tr>
-      <tr>
-        <td>Production Mode</td>
-        <td>(String Command)</td>
-        <td>Sent as legacy ASCII: `PRODUCTION_MODE\n`</td>
-      </tr>
-      <tr>
-        <td>Record Serial</td>
-        <td>(String Command)</td>
-        <td>`RECORD_SERIAL\n` or `STOP_RECORD_SERIAL\n`</td>
-      </tr>
-      <tr>
-        <td>Error</td>
-        <td>(Response)</td>
-        <td>`ERROR|...` ASCII message if needed</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+<div> <table> <thead> <tr> <th>Byte Position</th> <th>Field</th> <th>Size</th> <th>Description</th> </tr> </thead> <tbody> <tr> <td>0</td> <td>COMMAND_ID</td> <td>1 byte</td> <td>Numeric identifier for the command type (e.g., LED on/off, motor state)</td> </tr> <tr> <td>1</td> <td>HARDWARE_ID</td> <td>1 byte</td> <td>Numeric ID of the specific hardware component (e.g., LED number, Motor number)</td> </tr> <tr> <td>2-5</td> <td>VALUE</td> <td>4 bytes</td> <td> 32-bit unsigned integer (little-endian) representing the parameter's value <ul> <li>**LEDs:** Intensity (0-100)</li> <li>**Motors:** Speed (0-5000), Direction (0 or 1), State (0 or 1)</li> </ul> </td> </tr> <tr> <td>6</td> <td>END_CHAR</td> <td>1 byte</td> <td>Newline character (`0x0A`) indicating the end of the command</td> </tr> </tbody> </table> </div>
 
 **Note:** Some commands like `RESET`, `PRODUCTION_MODE`, `RECORD_SERIAL`, and `STOP_RECORD_SERIAL` remain ASCII-based for compatibility and simplicity. The binary protocol is primarily for hardware-related commands (LED, Motor, Light Barrier).
 
