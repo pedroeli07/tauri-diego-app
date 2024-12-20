@@ -444,14 +444,22 @@ With these features, you can efficiently control, monitor, and debug your 3D pri
 
 ## Serial Communication Protocol (Binary Format)
 
-With the transition to a binary-based communication protocol, the **DCubed 3D Printer Controller Developer** application now interacts with the printer's firmware using fixed-length binary messages rather than delimited ASCII strings. This approach allows for more efficient, consistent, and less error-prone communication.
+With the transition to a binary-based communication protocol, the **DCubed 3D Printer Controller Developer** application now interacts with the printer's firmware using fixed-length binary messages rather than delimited ASCII strings. This approach enhances efficiency, consistency, and reduces the likelihood of communication errors.
+
+### Overview
+
+- **Protocol Type:** Binary (7-byte fixed-length messages)
+- **Purpose:** Control hardware components (LEDs, Motors) and handle system-level commands
+- **Compatibility:** Hybrid approach using binary for hardware-related commands and ASCII for system-level commands (e.g., `RESET`, `PRODUCTION_MODE`)
 
 ### Command Structure (Binary)
 
-All commands from the application to the 3D printer's firmware follow a 7-byte binary format:
+All commands sent from the application to the 3D printer's firmware adhere to a 7-byte binary format:
 
-**General Format:**
-`[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]`
+```plaintext
+[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
+
+
 
 - **COMMAND_ID**: A numeric identifier representing the type of command (e.g., LED on/off, motor state).
 - **HARDWARE_ID**: Numeric ID of the specific hardware component (e.g., LED number, Motor number).
