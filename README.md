@@ -1976,9 +1976,6 @@ send_serial_command(&cmd);
         </code></pre>
       </td>
     </tr>
-    
-    <!-- Additional Commands -->
-    <!-- Add more rows here for any additional commands -->
   </tbody>
 </table>
 
