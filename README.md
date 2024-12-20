@@ -671,6 +671,51 @@ int main() {
     return 0;
 }
 ```
+## Utility Functions for Command Construction and Transmission
+
+Below are example functions in C for building and sending binary commands:
+
+```c
+#include <stdint.h>
+#include <string.h>
+
+// Convert integer to little-endian format
+uint32_t to_little_endian(uint32_t value) {
+    uint32_t little_endian = 0;
+    little_endian |= (value & 0x000000FF) << 0;
+    little_endian |= (value & 0x0000FF00) << 8;
+    little_endian |= (value & 0x00FF0000) << 16;
+    little_endian |= (value & 0xFF000000) >> 24;
+    return little_endian;
+}
+
+// Build command
+void build_command(SerialCommand* cmd, uint8_t command_id, uint8_t hardware_id, uint32_t value) {
+    cmd->command_id = command_id;
+    cmd->hardware_id = hardware_id;
+    cmd->value = to_little_endian(value);
+    cmd->end_char = 0x0A;
+}
+
+// Send command via serial
+// Actual serial communication implementation will be needed
+int send_serial_command(SerialCommand* cmd) {
+    // Example send (depends on serial communication library used)
+    // You'll need to implement actual sending through the serial port
+    return 1; // Return 1 for success, 0 for failure
+}
+
+// Example usage
+int main() {
+    SerialCommand cmd;
+    build_command(&cmd, CMD_LED_STATE, 3, 1); // Turn on LED 3
+    if(send_serial_command(&cmd)) {
+        // Command sent successfully
+    } else {
+        // Failed to send command
+    }
+    return 0;
+}
 
 ## 🛠️ C/C++ Integration Guide (Binary Protocol)
 
