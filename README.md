@@ -611,7 +611,10 @@ For developers working on the 3D printer firmware in **C** or **C++**, understan
      `ACK|RESET\n`
 
 ---
+Detailed Command Specification
+To enhance clarity, the following table provides an exhaustive specification of each command, including byte-wise details and corresponding code functions.
 
+<div> <table> <thead> <tr> <th>Command</th> <th>COMMAND_ID</th> <th>HARDWARE_ID</th> <th>VALUE</th> <th>Description</th> <th>Code Reference</th> </tr> </thead> <tbody> <tr> <td>LED Set State</td> <td>7</td> <td>LED Number (1 byte)</td> <td>0 = OFF, 1 = ON (4 bytes little-endian)</td> <td>Turns the specified LED on or off</td> <td><code>handleLEDCommand</code></td> </tr> <tr> <td>LED Set Intensity</td> <td>8</td> <td>LED Number (1 byte)</td> <td>Intensity Level (0-100) (4 bytes little-endian)</td> <td>Sets the brightness of the specified LED</td> <td><code>handleLEDCommand</code></td> </tr> <tr> <td>Motor Set Direction</td> <td>1</td> <td>Motor Number (1 byte)</td> <td>0 = CW, 1 = CCW (4 bytes little-endian)</td> <td>Sets the rotation direction of the specified motor</td> <td><code>handleMotorCommand</code></td> </tr> <tr> <td>Motor Set Speed</td> <td>2</td> <td>Motor Number (1 byte)</td> <td>Speed in Hz (0-5000) (4 bytes little-endian)</td> <td>Sets the speed of the specified motor</td> <td><code>handleMotorCommand</code></td> </tr> <tr> <td>Motor Set State</td> <td>3</td> <td>Motor Number (1 byte)</td> <td>0 = OFF, 1 = ON (4 bytes little-endian)</td> <td>Turns the specified motor on or off</td> <td><code>handleMotorCommand</code></td> </tr> <tr> <td>Reset</td> <td>-</td> <td>-</td> <td>Sent as ASCII string: `RESET\n`</td> <td>Resets the printer firmware</td> <td><code>handleReset</code></td> </tr> <tr> <td>Production Mode</td> <td>-</td> <td>-</td> <td>Sent as ASCII string: `PRODUCTION_MODE\n`</td> <td>Enters production mode</td> <td><code>handleProductionMode</code></td> </tr> <tr> <td>Record Serial</td> <td>-</td> <td>-</td> <td>Sent as ASCII string: `RECORD_SERIAL\n` ou `STOP_RECORD_SERIAL\n`</td> <td>Starts or stops recording serial data</td> <td><code>handleRecordSerial</code></td> </tr> </tbody> </table> </div>
 
 ---
 
