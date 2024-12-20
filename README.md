@@ -1996,8 +1996,6 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
       </td>
       <td>[11, 1, 1, 0, 0, 255, 10] (Barreira de Luz 1 ERROR com detalhe 255)</td>
     </tr>
-
-    <!-- Comandos de Erro -->
     <tr>
       <td>12</td>
       <td>Erro</td>
