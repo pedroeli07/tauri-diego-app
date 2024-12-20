@@ -450,342 +450,252 @@ With the transition to a binary-based communication protocol, the **DCubed 3D Pr
 
 All commands from the application to the 3D printer's firmware follow a 7-byte binary format:
 
-
-
 **General Format:**
-[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
+`[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]`
 
-markdown
-Copiar código
+- **COMMAND_ID**: A numeric identifier representing the type of command (e.g., LED on/off, motor state).
+- **HARDWARE_ID**: Numeric ID of the specific hardware component (e.g., LED number, Motor number).
+- **VALUE**: A 32-bit unsigned integer (4 bytes, little-endian) representing the parameter's value.
+  - For LEDs: intensity (0-100)
+  - For Motors: speed (0-5000), direction (0 or 1), state (0 or 1)
+- **'\n' (0x0A)**: A newline character (1 byte) indicating the end of the command.
 
+**Example:** Turning LED 3 on with intensity 100% might be:
+- COMMAND_ID for LED ON/OFF = 7
+- HARDWARE_ID = 3
+- VALUE = 100 (0x64)
 
-markdown
-Copiar código
+The final 7-byte message could look like:
+`[7, 3, 100, 0, 0, 0, 0x0A]`
 
-- **COMMAND**: Specifies the type of command (e.g., `LED`, `MOTOR`).
-- **ID**: Identifies the specific hardware component (e.g., LED number, Motor number).
-- **STATE**: Indicates the desired state (e.g., `ON`, `OFF`).
-- **PARAMETER**: Specifies additional parameters (e.g., `INTENSITY`, `SPEED`, `DIR`).
-- **VALUE**: The value associated with the parameter (e.g., percentage for intensity, Hz for speed).
+Here, `100` is stored as `0x64 0x00 0x00 0x00` in little-endian form:
+`[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
 
-### Command Table
+### Command IDs
 
-The following table outlines the commands that the application sends to the 3D printer's firmware, along with their structure and descriptions.
-<div align="center">
-
-<table>
-  <thead>
-    <tr>
-      <th>Action</th>
-      <th>Command Sent</th>
-      <th>Response Expected</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>Turn LED On</strong></td>
-      <td><code>LED|&lt;ID&gt;|ON|INTENSITY|&lt;VALUE&gt;\n</code></td>
-      <td><code>ACK|LED|&lt;ID&gt;|ON|INTENSITY|&lt;VALUE&gt;\n</code></td>
-      <td>Turns the specified LED on with a given intensity percentage.</td>
-    </tr>
-    <tr>
-      <td><strong>Turn LED Off</strong></td>
-      <td><code>LED|&lt;ID&gt;|OFF|INTENSITY|0\n</code></td>
-      <td><code>ACK|LED|&lt;ID&gt;|OFF|INTENSITY|0\n</code></td>
-      <td>Turns the specified LED off.</td>
-    </tr>
-    <tr>
-      <td><strong>Set LED Intensity</strong></td>
-      <td><code>LED|&lt;ID&gt;|ON|INTENSITY|&lt;VALUE&gt;\n</code></td>
-      <td><code>LED|&lt;ID&gt;|ON|INTENSITY|&lt;VALUE&gt;\n</code></td>
-      <td>Adjusts the LED intensity while keeping it on.</td>
-    </tr>
-    <tr>
-      <td><strong>Turn Motor On</strong></td>
-      <td><code>MOTOR|&lt;ID&gt;|ON|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td><code>ACK|MOTOR|&lt;ID&gt;|ON|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td>Turns the motor on with specified speed and direction.</td>
-    </tr>
-    <tr>
-      <td><strong>Turn Motor Off</strong></td>
-      <td><code>MOTOR|&lt;ID&gt;|OFF|SPEED|0|DIR|&lt;DIR&gt;\n</code></td>
-      <td><code>ACK|MOTOR|&lt;ID&gt;|OFF|SPEED|0|DIR|&lt;DIR&gt;\n</code></td>
-      <td>Turns the motor off.</td>
-    </tr>
-    <tr>
-      <td><strong>Set Motor Speed</strong></td>
-      <td><code>MOTOR|&lt;ID&gt;|ON|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td><code>MOTOR|&lt;ID&gt;|ON|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td>Sets the motor speed while keeping it on.</td>
-    </tr>
-    <tr>
-      <td><strong>Set Motor Direction</strong></td>
-      <td><code>MOTOR|&lt;ID&gt;|&lt;STATE&gt;|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td><code>ACK|MOTOR|&lt;ID&gt;|&lt;STATE&gt;|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td>Changes the motor direction.</td>
-    </tr>
-    <tr>
-      <td><strong>Activate Production Mode</strong></td>
-      <td><code>PRODUCTION_MODE\n</code></td>
-      <td><code>ACK|PRODUCTION_MODE\n</code></td>
-      <td>Switches the printer into production mode.</td>
-    </tr>
-    <tr>
-      <td><strong>Send Reset Command</strong></td>
-      <td><code>RESET\n</code></td>
-      <td><code>ACK|RESET\n</code></td>
-      <td>Resets the printer to restart operations.</td>
-    </tr>
-    <tr>
-      <td><strong>Start Recording Serial Data</strong></td>
-      <td><code>RECORD_SERIAL\n</code></td>
-      <td><code>ACK|RECORD_SERIAL\n</code></td>
-      <td>Starts recording incoming serial data.</td>
-    </tr>
-    <tr>
-      <td><strong>Stop Recording Serial Data</strong></td>
-      <td><code>STOP_RECORD_SERIAL\n</code></td>
-      <td><code>ACK|STOP_RECORD_SERIAL\n</code></td>
-      <td>Stops recording incoming serial data.</td>
-    </tr>
-    <tr>
-      <td><strong>Light Barrier Status</strong></td>
-      <td><code>LIGHT_BARRIER|&lt;ID&gt;|&lt;STATUS&gt;\n</code></td>
-      <td><code>ACK|LIGHT_BARRIER|&lt;ID&gt;|&lt;STATUS&gt;\n</code></td>
-      <td>Reports the status of the light barrier (`OK` or `ERROR`).</td>
-    </tr>
-    <tr>
-      <td><strong>Error Message</strong></td>
-      <td>N/A</td>
-      <td><code>ERROR|&lt;DESCRIPTION&gt;\n</code></td>
-      <td>Provides details about encountered errors.</td>
-    </tr>
-  </tbody>
-</table>
-
+<div>
+  <table>
+    <thead>
+      <tr>
+        <th>Action</th>
+        <th>Command ID</th>
+        <th>Value Interpretation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>LED State</td>
+        <td>7</td>
+        <td>0 = OFF, 1 = ON</td>
+      </tr>
+      <tr>
+        <td>LED Intensity</td>
+        <td>8</td>
+        <td>Intensity (0-100)</td>
+      </tr>
+      <tr>
+        <td>Motor Direction</td>
+        <td>1</td>
+        <td>0 = CW, 1 = CCW</td>
+      </tr>
+      <tr>
+        <td>Motor Speed</td>
+        <td>2</td>
+        <td>Speed in Hz (0-5000)</td>
+      </tr>
+      <tr>
+        <td>Motor State</td>
+        <td>3</td>
+        <td>0 = OFF, 1 = ON</td>
+      </tr>
+      <tr>
+        <td>Light Barrier</td>
+        <td>(Firmware Reports)</td>
+        <td>Firmware uses `LIGHT_BARRIER` in responses</td>
+      </tr>
+      <tr>
+        <td>Reset</td>
+        <td>(String Command)</td>
+        <td>Sent as legacy ASCII: `RESET\n`</td>
+      </tr>
+      <tr>
+        <td>Production Mode</td>
+        <td>(String Command)</td>
+        <td>Sent as legacy ASCII: `PRODUCTION_MODE\n`</td>
+      </tr>
+      <tr>
+        <td>Record Serial</td>
+        <td>(String Command)</td>
+        <td>`RECORD_SERIAL\n` or `STOP_RECORD_SERIAL\n`</td>
+      </tr>
+      <tr>
+        <td>Error</td>
+        <td>(Response)</td>
+        <td>`ERROR|...` ASCII message if needed</td>
+      </tr>
+    </tbody>
+  </table>
 </div>
 
+**Note:** Some commands like `RESET`, `PRODUCTION_MODE`, `RECORD_SERIAL`, and `STOP_RECORD_SERIAL` remain ASCII-based for compatibility and simplicity. The binary protocol is primarily for hardware-related commands (LED, Motor, Light Barrier).
+
+### Responses
+
+The firmware responds to commands and events using a similar binary approach for hardware states. However, `ERROR` and some legacy responses (`ACK`) may still be ASCII-based to quickly indicate issues or acknowledgments. This hybrid approach simplifies debugging and handling unexpected conditions.
+
+**Firmware Response Format for Hardware:**
+- **For LED updates:**
+  `[7, HARDWARE_ID, INTENSITY (4 bytes), 0x0A]`
+  - `COMMAND_ID=7` for LED state and intensity feedback.
+  - The VALUE field indicates the current intensity if ON (1), or 0 if OFF.
+  - The firmware might send the LED's state by setting VALUE=1 for ON and then another command with COMMAND_ID=8 for intensity, or combine the logic by always reporting intensity.
+
+- **For LED Intensity (COMMAND_ID=8):**
+  `[8, HARDWARE_ID, VALUE (4 bytes), 0x0A]`
+  - VALUE represents intensity (0-100).
+
+- **For Motor State/Speed/Direction:**
+  The firmware might send multiple commands to report each property separately. For example:
+  - **Motor State (COMMAND_ID=3):**
+    `[3, HARDWARE_ID, STATE (0 or 1), 0, 0, 0, 0x0A]`
+  - **Motor Speed (COMMAND_ID=2):**
+    `[2, HARDWARE_ID, SPEED (0-5000), ..., 0x0A]`
+  - **Motor Direction (COMMAND_ID=1):**
+    `[1, HARDWARE_ID, DIR (0 or 1), ..., 0x0A]`
+
+- **For Light Barrier:**
+  The firmware can still send `LIGHT_BARRIER|ID|OK\n` or `LIGHT_BARRIER|ID|ERROR\n` as ASCII.
   
-Response Messages
+  Or, if upgraded to binary in the future, a dedicated COMMAND_ID could be assigned.
 
-The firmware responds to commands and events with structured messages, formatted as follows:
+**Error Messages (ASCII):**
+If the firmware receives an invalid command or cannot process it, it returns:
+`ERROR|<DESCRIPTION>\n`
+- e.g., `ERROR|Invalid command for LED 1\n`
 
-<div align="center">
+**ACK Messages (ASCII):**
+Upon successful processing of some legacy commands like `RESET` or `PRODUCTION_MODE`, the firmware responds with:
+`ACK|<COMMAND>\n`
+- e.g., `ACK|RESET\n`
 
-<table>
-  <thead>
-    <tr>
-      <th>Message Type</th>
-      <th>Response</th>
-      <th>Description</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><strong>Acknowledgment</strong></td>
-      <td><code>ACK|&lt;COMMAND&gt;\n</code></td>
-      <td>Confirms receipt and processing of a command.</td>
-    </tr>
-    <tr>
-      <td><strong>LED Update</strong></td>
-      <td><code>LED|&lt;ID&gt;|&lt;STATE&gt;|INTENSITY|&lt;VALUE&gt;\n</code></td>
-      <td>Reports the LED's state and intensity.</td>
-    </tr>
-    <tr>
-      <td><strong>Motor Update</strong></td>
-      <td><code>MOTOR|&lt;ID&gt;|&lt;STATE&gt;|SPEED|&lt;VALUE&gt;|DIR|&lt;DIR&gt;\n</code></td>
-      <td>Reports the motor's state, speed, and direction.</td>
-    </tr>
-    <tr>
-      <td><strong>Light Barrier Update</strong></td>
-      <td><code>LIGHT_BARRIER|&lt;ID&gt;|&lt;STATUS&gt;\n</code></td>
-      <td>Reports the status of the light barrier (`OK` or `ERROR`).</td>
-    </tr>
-    <tr>
-      <td><strong>Error Message</strong></td>
-      <td><code>ERROR|&lt;DESCRIPTION&gt;\n</code></td>
-      <td>Provides details about encountered errors.</td>
-    </tr>
-    <tr>
-      <td><strong>Unknown Message</strong></td>
-      <td><code>UNKNOWN|&lt;RAW_MESSAGE&gt;\n</code></td>
-      <td>Indicates an unrecognized message format.</td>
-    </tr>
-  </tbody>
-</table>
-
-</div>
-
-  
-<ID>: Hardware component identifier (e.g., LED or Motor number).
-<VALUE>: Parameter value (e.g., intensity percentage, speed in Hz).
-<DIR>: Motor direction (CW for clockwise, CCW for counter-clockwise).
-  
-
----
-## 🛠️ C/C++ Integration Guide
-
-For developers working on the 3D printer firmware in **C** or **C++**, understanding the serial communication protocol is essential. The following guidelines provide instructions on parsing incoming commands and formatting responses appropriately.
+This mixed-response approach (binary for hardware, ASCII for system-level commands and errors) provides flexibility and easier debugging.
 
 ---
 
-### 🔄 Parsing Incoming Commands
+## 🛠️ C/C++ Integration Guide (Binary Protocol)
+
+For developers working on the 3D printer firmware in **C** or **C++**, understanding the binary-based serial communication protocol is crucial. The following guidelines detail how to parse incoming binary commands and how to send back binary or ASCII responses as needed.
+
+### 🔄 Parsing Incoming Commands (Binary)
 
 1. **📥 Read Incoming Data**
-   - Continuously read data from the serial port.  
-   - Store received bytes until a **newline character** (`\n`) is detected, indicating the end of a command.
+   - Continuously read 7 bytes from the serial port.
+   - After reading 7 bytes, you have one full command.
 
-2. **✂️ Tokenize the Command**
-   - Split the command string using the **pipe** (`|`) delimiter.  
-   - **Example:** `LED|3|ON|INTENSITY|75\n` splits into `["LED", "3", "ON", "INTENSITY", "75"]`.
+2. **🔍 Parse the Binary Command**
+   - `COMMAND_ID = data[0]` (1 byte)
+   - `HARDWARE_ID = data[1]` (1 byte)
+   - `VALUE = uint32_t` formed from `data[2], data[3], data[4], data[5]` in little-endian.
+   - `END_CHAR = data[6]` should be `0x0A`.
 
-3. **🔍 Identify Command Type**
-   - The **first token** determines the command type (e.g., `LED`, `MOTOR`, `RESET`).
+   If `END_CHAR != 0x0A`, the command is invalid.
 
-4. **🔑 Extract Parameters**
-   - Based on the command type, extract the relevant parameters:
+3. **⚙️ Execute Actions**
+   - Based on `COMMAND_ID` and `HARDWARE_ID`, adjust hardware states:
+     - If `COMMAND_ID=7` (LED state), `VALUE=0` or `1` sets LED OFF/ON.
+     - If `COMMAND_ID=8` (LED intensity), `VALUE=0-100` sets LED intensity.
+     - If `COMMAND_ID=3` (Motor state), `VALUE=0 or 1` sets motor OFF/ON.
+     - If `COMMAND_ID=2` (Motor speed), `VALUE=0-5000` sets motor speed.
+     - If `COMMAND_ID=1` (Motor direction), `VALUE=0 or 1` sets CW/CCW.
 
-   - **LED Command**  
-     - `ID`: Integer representing the LED number.  
-     - `STATE`: `"ON"` or `"OFF"`.  
-     - `INTENSITY`: Integer between `0` and `100`.  
-
-   - **Motor Command**  
-     - `ID`: Integer representing the motor number.  
-     - `STATE`: `"ON"` or `"OFF"`.  
-     - `SPEED`: Integer representing the speed in Hz.  
-     - `DIR`: `"CW"` (clockwise) or `"CCW"` (counterclockwise).  
-
-   - **General Commands**  
-     - Commands like `PRODUCTION_MODE` or `RESET` may not require additional parameters.
-
-5. **⚙️ Execute Actions**
-   - Execute hardware actions based on the extracted parameters.  
-   - **Example:** For `LED|3|ON|INTENSITY|75`, turn on LED number 3 and set its intensity to 75%.
-
-6. **✅ Send Acknowledgment**
-   - After successfully processing a command, send an acknowledgment back.  
-   - **Example:** `ACK|LED\n`.
+4. **✅ Send Responses**
+   - For hardware state changes, send back binary states if needed.
+   - For errors, send `ERROR|...` in ASCII.
+   - For legacy commands like `RESET` or `PRODUCTION_MODE` (still ASCII), send `ACK|...` or `ERROR|...` in ASCII.
 
 ---
 
 ### 📤 Formatting and Sending Responses
 
-1. **🔧 Structured Response**
-   - Ensure all responses follow a **predefined format** for consistency.  
-   - Include relevant details to inform the application about the current state or any issues.
+1. **🔧 Binary Response for Hardware**
+   - Use the same 7-byte format:
+     `[COMMAND_ID, HARDWARE_ID, VALUE (4 bytes), 0x0A]`
 
-2. **💡 Example Responses**
-   - **LED Update:** `LED|3|ON|INTENSITY|75\n`  
-   - **Motor Update:** `MOTOR|2|OFF|SPEED|0|DIR|CCW\n`  
-   - **Light Barrier Status:** `LIGHT_BARRIER|1|OK\n`  
-   - **Error Message:** `ERROR|Invalid LED ID\n`  
+   **Example:** LED 3 ON with intensity 100%:
+   - `[7, 3, 100, 0, 0, 0, 0x0A]`
+   - `[8, 3, 100, 0, 0, 0, 0x0A]` for intensity.
 
-3. **⚠️ Error Handling**
-   - For invalid commands or parameters, send an error message.  
-   - **Example:** `ERROR|Unknown Command\n`.
+2. **⚠️ Error Messages (ASCII)**
+   - For invalid commands or unexpected parameters:
+     `ERROR|<DESCRIPTION>\n`
 
-4. **🔄 Consistency**
-   - Always **end messages with a newline** (`\n`) to signal the end of the response.  
-   - Use **uppercase letters** for command and parameter identifiers to avoid case sensitivity issues.
+3. **ACK Messages (ASCII)**
+   - For successfully processed legacy ASCII commands like `RESET`:
+     `ACK|RESET\n`
 
 ---
 
-### 📝 Sample C++ Code Snippet for Parsing Commands
-## Arduino Code for Command Processing
+
+---
+
+### 📝 Sample C++ Code Snippet for Parsing Binary Commands
 
 ```cpp
-The following Arduino code demonstrates how to process serial commands, control LEDs and motors, and monitor light barriers. Each function is explained with inline comments to make it easy to understand and adapt.
+#include <Arduino.h>
 
-```cpp
-// Function to process received commands via serial
-void processCommand(String command) {
-  // Split the string into parts using '|' as a delimiter
-  int partIndex = 0;
-  String parts[10];
-  int pos = 0;
+void setup() {
+  Serial.begin(115200);
+}
 
-  while ((pos = command.indexOf('|')) != -1) {
-    parts[partIndex++] = command.substring(0, pos);
-    command = command.substring(pos + 1);
+void loop() {
+  if (Serial.available() >= 7) {
+    uint8_t data[7];
+    Serial.readBytes(data, 7);
+    processCommand(data);
   }
-  parts[partIndex] = command;
+}
 
-  // Check the command type and delegate to appropriate handler
-  if (parts[0] == "LED") {
-    int id = parts[1].toInt();         // Extract LED ID
-    String state = parts[2];           // Extract LED state (ON/OFF)
-    int intensity = parts[4].toInt();  // Extract intensity value
-    handleLED(id, state, intensity);
-  } else if (parts[0] == "MOTOR") {
-    int id = parts[1].toInt();         // Extract Motor ID
-    String state = parts[2];           // Extract Motor state (ON/OFF)
-    int speed = parts[4].toInt();      // Extract speed value
-    String direction = parts[6];       // Extract direction (CW/CCW)
-    handleMotor(id, state, speed, direction);
-  } else if (parts[0] == "LIGHT_BARRIER") {
-    int id = parts[1].toInt();         // Extract Light Barrier ID
-    String status = parts[2];          // Extract Light Barrier status (OK/ERROR)
-    handleLightBarrier(id, status);
+void processCommand(uint8_t data[7]) {
+  uint8_t command_id = data[0];
+  uint8_t hardware_id = data[1];
+  uint32_t value = (uint32_t)data[2] | ((uint32_t)data[3]<<8) | ((uint32_t)data[4]<<16) | ((uint32_t)data[5]<<24);
+  uint8_t end_char = data[6];
+
+  if (end_char != 0x0A) {
+    sendError("Invalid end char");
+    return;
+  }
+
+  // Example handling:
+  if (command_id == 7) { // LED state
+    if (hardware_id == 1 && (value != 0 && value != 1)) {
+      // If we want to force an error for LED 1
+      sendError("Invalid command for LED 1");
+      return;
+    }
+    // Otherwise, set LED state
+    // ... set LED hardware ...
+    sendACK("LED"); // Or send binary response if needed
+  } else if (command_id == 8) { // LED Intensity
+    // Set intensity
+    // ...
+    sendACK("LEDPWM");
   } else {
-    sendError("Unknown command");      // Handle unknown commands
+    sendError("Unknown command_id");
   }
 }
 
-// Function to control LEDs
-void handleLED(int id, String state, int intensity) {
-  if (state == "ON") {
-    // Map intensity (0-100%) to PWM range (0-255)
-    analogWrite(LED_PIN, map(intensity, 0, 100, 0, 255));
-    sendACK("LED", id, "ON");          // Send acknowledgment
-  } else if (state == "OFF") {
-    analogWrite(LED_PIN, 0);           // Turn off the LED
-    sendACK("LED", id, "OFF");         // Send acknowledgment
-  } else {
-    sendError("Invalid LED state");    // Send error for invalid state
-  }
+void sendACK(const char* cmd) {
+  Serial.print("ACK|");
+  Serial.print(cmd);
+  Serial.print("\n");
 }
 
-// Function to control motors
-void handleMotor(int id, String state, int speed, String direction) {
-  if (state == "ON") {
-    // Map speed (0-5000 Hz) to PWM range (0-255)
-    analogWrite(MOTOR_PIN, map(speed, 0, 5000, 0, 255)); // Adjust mapping as needed
-    sendACK("MOTOR", id, "ON");         // Send acknowledgment
-  } else if (state == "OFF") {
-    analogWrite(MOTOR_PIN, 0);          // Turn off the motor
-    sendACK("MOTOR", id, "OFF");        // Send acknowledgment
-  } else {
-    sendError("Invalid Motor state");   // Send error for invalid state
-  }
+void sendError(const char* desc) {
+  Serial.print("ERROR|");
+  Serial.print(desc);
+  Serial.print("\n");
 }
-
-// Function to monitor light barrier status
-void handleLightBarrier(int id, String status) {
-  if (status == "OK" || status == "ERROR") {
-    sendACK("LIGHT_BARRIER", id, status); // Send acknowledgment with status
-  } else {
-    sendError("Invalid Light Barrier status"); // Send error for invalid status
-  }
-}
-
-// Function to send acknowledgment (ACK) messages
-void sendACK(String device, int id, String status) {
-  Serial.print("ACK|");                 // Start ACK message
-  Serial.print(device);                 // Include device type (LED/MOTOR/LIGHT_BARRIER)
-  Serial.print("|");
-  Serial.print(id);                     // Include device ID
-  Serial.print("|");
-  Serial.println(status);               // Include status (ON/OFF/OK/ERROR)
-}
-
-// Function to send error messages
-void sendError(String description) {
-  Serial.print("ERROR|");               // Start error message
-  Serial.println(description);          // Include error description
-}
-
 ```
 
 ## 📝 Explanation
