@@ -1622,9 +1622,8 @@ Example Action:
 You clicked a LED that was OFF, changed its intensity to 81%, and clicked "Update".
 
 Command Sent:
-csharp
-Copiar código
 [8, 2, 81, 0, 0, 0, 10]
+
 Command Breakdown:
 Byte 1 (8): COMMAND_ID for LED Intensity.
 Byte 2 (2): HARDWARE_ID for LED 2.
@@ -1632,9 +1631,9 @@ Bytes 3-6 (81, 0, 0, 0):
 VALUE in little-endian format.
 81 represents the intensity level (81%).
 Byte 7 (10): END_CHAR (Newline character) indicating the end of the command.
+
 C/C++ Code Example:
-c
-Copiar código
+
 // Change intensity of LED 2 to 81% and update
 SerialCommand cmd;
 build_command(&cmd, CMD_LED_INTENSITY, 2, 81);
@@ -1655,8 +1654,7 @@ Firmware Action:
 Upon receiving the command, the firmware interprets it as a request to set LED 2's intensity to 81%.
 LED 2 is updated accordingly and turned ON with 81% intensity.
 Received Response Example:
-csharp
-Copiar código
+
 [7, 2, 1, 0, 0, 0, 10]
 COMMAND_ID (7): LED State
 HARDWARE_ID (2): LED 2
@@ -1692,740 +1690,117 @@ These commands still follow the 7-byte structure but primarily use the COMMAND_I
 
 
 
-
-<table>
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
   <thead>
-    <tr>
-      <th>COMMAND_ID</th>
-      <th>Action</th>
-      <th>HARDWARE_ID</th>
-      <th>VALUE Interpretation</th>
-      <th>Example Command Received</th>
-      <th>Command Breakdown</th>
-      <th>C/C++ Code Example</th>
-      <th>Example Response Sent</th>
+    <tr style="background-color: #f2f2f2;">
+      <th style="border: 1px solid #ddd; padding: 12px;">COMMAND_ID</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Action</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">HARDWARE_ID</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">VALUE Interpretation</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Example Command Sent</th>
     </tr>
   </thead>
   <tbody>
-    <!-- Motor Direction -->
     <tr>
-      <td>1</td>
-      <td>Set Motor Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
-      <td>[1, 1, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>1:</strong> COMMAND_ID for Motor Direction</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (CW)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_DIRECTION 1
-
-// Function to handle Motor Direction Command
-void handleMotorDirection(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_DIRECTION, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        motor->direction = CW;
-        // Implement hardware-specific direction change
-        setMotorDirectionCW(motor);
-    } else if (value == 1) {
-        motor->direction = CCW;
-        // Implement hardware-specific direction change
-        setMotorDirectionCCW(motor);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_MOTOR_DIRECTION, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_DIRECTION, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 1, 1, 0, 0, 0, 10] // ACK for Motor Direction
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor Direction</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[1, 1, 0, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Motor Speed -->
     <tr>
-      <td>2</td>
-      <td>Set Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
-      <td>[2, 1, 208, 9, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>2:</strong> COMMAND_ID for Motor Speed</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>208, 9, 0, 0:</strong> VALUE = 2500 (0x09D0)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_SPEED 2
-
-// Function to handle Motor Speed Command
-void handleMotorSpeed(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_SPEED, hardware_id);
-        return;
-    }
-
-    if (value > 5000) {
-        // Handle invalid speed
-        sendErrorResponse(CMD_MOTOR_SPEED, hardware_id);
-        return;
-    }
-
-    motor->speed = value;
-    // Implement hardware-specific speed setting
-    setMotorSpeed(motor, value);
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_SPEED, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 2, 1, 0, 0, 0, 10] // ACK for Motor Speed
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">2</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor Speed</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[2, 1, 208, 9, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Motor State -->
     <tr>
-      <td>3</td>
-      <td>Set Motor State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>[3, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>3:</strong> COMMAND_ID for Motor State</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (ON)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_STATE 3
-
-// Function to handle Motor State Command
-void handleMotorState(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_STATE, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        motor->state = OFF;
-        // Implement hardware-specific motor stop
-        stopMotor(motor);
-    } else if (value == 1) {
-        motor->state = ON;
-        // Implement hardware-specific motor start
-        startMotor(motor);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_MOTOR_STATE, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_STATE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 3, 1, 0, 0, 0, 10] // ACK for Motor State
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">3</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[3, 1, 1, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- LED State -->
     <tr>
-      <td>7</td>
-      <td>Set LED State</td>
-      <td>LED ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>[7, 2, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>7:</strong> COMMAND_ID for LED State</li>
-          <li><strong>2:</strong> HARDWARE_ID for LED 2</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (ON)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_LED_STATE 7
-
-// Function to handle LED State Command
-void handleLEDState(uint8_t hardware_id, uint32_t value) {
-    LED* led = getLEDById(hardware_id);
-    if (led == NULL) {
-        // Handle invalid LED ID
-        sendErrorResponse(CMD_LED_STATE, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        led->state = OFF;
-        // Implement hardware-specific LED off
-        setLEDState(led, OFF);
-    } else if (value == 1) {
-        led->state = ON;
-        // Implement hardware-specific LED on
-        setLEDState(led, ON);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_LED_STATE, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_LED_STATE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 7, 2, 1, 0, 0, 10] // ACK for LED State
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">7</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set LED State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">LED ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[7, 2, 1, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- LED Intensity -->
     <tr>
-      <td>8</td>
-      <td>Set LED Intensity</td>
-      <td>LED ID</td>
-      <td>Intensity Level (0-100)</td>
-      <td>[8, 3, 81, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>8:</strong> COMMAND_ID for LED Intensity</li>
-          <li><strong>3:</strong> HARDWARE_ID for LED 3</li>
-          <li><strong>81, 0, 0, 0:</strong> VALUE = 81 (0x51)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_LED_INTENSITY 8
-
-// Function to handle LED Intensity Command
-void handleLEDIntensity(uint8_t hardware_id, uint32_t value) {
-    LED* led = getLEDById(hardware_id);
-    if (led == NULL) {
-        // Handle invalid LED ID
-        sendErrorResponse(CMD_LED_INTENSITY, hardware_id);
-        return;
-    }
-
-    if (value > 100) {
-        // Handle invalid intensity
-        sendErrorResponse(CMD_LED_INTENSITY, hardware_id);
-        return;
-    }
-
-    led->intensity = value;
-    // Implement hardware-specific LED intensity setting
-    setLEDIntensity(led, value);
-
-    // Optionally turn on the LED if it's off
-    if (led->state == OFF && value > 0) {
-        led->state = ON;
-        setLEDState(led, ON);
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_LED_INTENSITY, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 8, 3, 81, 0, 0, 10] // ACK for LED Intensity
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">8</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set LED Intensity</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">LED ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Intensity Level (0-100)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[8, 3, 70, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- LED Combined Update -->
     <tr>
-      <td>9</td>
-      <td>LED Combined Update</td>
-      <td>LED ID</td>
-      <td>Combination of state and intensity: (Intensity << 16) | State</td>
-      <td>[9, 3, 81, 1, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>9:</strong> COMMAND_ID for LED Combined Update</li>
-          <li><strong>3:</strong> HARDWARE_ID for LED 3</li>
-          <li><strong>81, 1, 0, 0:</strong> VALUE = (81 << 16) | 1 = 0x00015101</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_LED_COMBINED_UPDATE 9
-
-// Function to handle LED Combined Update Command
-void handleLEDCombinedUpdate(uint8_t hardware_id, uint32_t value) {
-    LED* led = getLEDById(hardware_id);
-    if (led == NULL) {
-        // Handle invalid LED ID
-        sendErrorResponse(CMD_LED_COMBINED_UPDATE, hardware_id);
-        return;
-    }
-
-    uint16_t intensity = (value >> 16) & 0xFFFF;
-    uint8_t state = value & 0xFF;
-
-    if (intensity > 100 || state > 1) {
-        // Handle invalid intensity or state
-        sendErrorResponse(CMD_LED_COMBINED_UPDATE, hardware_id);
-        return;
-    }
-
-    led->intensity = intensity;
-    led->state = (state == 1) ? ON : OFF;
-
-    // Implement hardware-specific LED settings
-    setLEDIntensity(led, intensity);
-    setLEDState(led, led->state);
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_LED_COMBINED_UPDATE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 9, 3, 81, 1, 0, 10] // ACK for LED Combined Update
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">9</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">LED Combined Update</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">LED ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">(Intensity &lt;&lt; 16) | State</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[9, 3, 70, 1, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Motor Toggle State -->
     <tr>
-      <td>10</td>
-      <td>Toggle Motor State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>[10, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>10:</strong> COMMAND_ID for Motor Toggle State</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Toggle to ON)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_TOGGLE_STATE 10
-
-// Function to handle Motor Toggle State Command
-void handleMotorToggleState(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_TOGGLE_STATE, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        motor->state = OFF;
-        stopMotor(motor);
-    } else if (value == 1) {
-        motor->state = ON;
-        startMotor(motor);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_MOTOR_TOGGLE_STATE, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_TOGGLE_STATE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 10, 1, 1, 0, 0, 10] // ACK for Motor Toggle State
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">10</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Toggle Motor State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[10, 1, 1, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Adjust Motor Speed -->
     <tr>
-      <td>11</td>
-      <td>Adjust Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
-      <td>[11, 1, 220, 5, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>11:</strong> COMMAND_ID for Adjust Motor Speed</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>220, 5, 0, 0:</strong> VALUE = 1500 (0x05DC)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_ADJUST_SPEED 11
-
-// Function to handle Adjust Motor Speed Command
-void handleMotorAdjustSpeed(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_ADJUST_SPEED, hardware_id);
-        return;
-    }
-
-    if (value > 5000) {
-        // Handle invalid speed
-        sendErrorResponse(CMD_MOTOR_ADJUST_SPEED, hardware_id);
-        return;
-    }
-
-    motor->speed = value;
-    // Implement hardware-specific speed adjustment
-    setMotorSpeed(motor, value);
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_ADJUST_SPEED, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 11, 1, 220, 5, 0, 10] // ACK for Adjust Motor Speed
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">11</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Adjust Motor Speed</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[11, 1, 220, 5, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Motor Toggle Direction -->
     <tr>
-      <td>12</td>
-      <td>Toggle Motor Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
-      <td>[12, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>12:</strong> COMMAND_ID for Motor Toggle Direction</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (CCW)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_MOTOR_TOGGLE_DIRECTION 12
-
-// Function to handle Motor Toggle Direction Command
-void handleMotorToggleDirection(uint8_t hardware_id, uint32_t value) {
-    Motor* motor = getMotorById(hardware_id);
-    if (motor == NULL) {
-        // Handle invalid Motor ID
-        sendErrorResponse(CMD_MOTOR_TOGGLE_DIRECTION, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        motor->direction = CW;
-        setMotorDirectionCW(motor);
-    } else if (value == 1) {
-        motor->direction = CCW;
-        setMotorDirectionCCW(motor);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_MOTOR_TOGGLE_DIRECTION, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_MOTOR_TOGGLE_DIRECTION, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 12, 1, 1, 0, 0, 10] // ACK for Motor Toggle Direction
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">12</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Toggle Motor Direction</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = CW, 1 = CCW</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[12, 1, 1, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Reset Command (ASCII) -->
     <tr>
-      <td>1 (0x01)</td>
-      <td>Reset System</td>
-      <td>0</td>
-      <td>RESET command (ASCII)</td>
-      <td>[1, 0, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>1 (0x01):</strong> COMMAND_ID for Reset</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (Not used)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_RESET 1
-
-// Function to handle Reset Command
-void handleReset(uint8_t hardware_id, uint32_t value) {
-    // Reset all systems
-    resetAllSystems();
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_RESET, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 1, 0, 0, 0, 0, 10] // ACK for Reset
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">1 (0x01)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Reset System</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">RESET command (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[1, 0, 0, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Production Mode Command (ASCII) -->
     <tr>
-      <td>2 (0x02)</td>
-      <td>Set Production Mode</td>
-      <td>0</td>
-      <td>PRODUCTION_MODE command (ASCII)</td>
-      <td>[2, 0, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>2 (0x02):</strong> COMMAND_ID for Production Mode</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Activate Production Mode)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_PRODUCTION_MODE 2
-
-// Function to handle Production Mode Command
-void handleProductionMode(uint8_t hardware_id, uint32_t value) {
-    if (value == 1) {
-        activateProductionMode();
-    } else if (value == 0) {
-        deactivateProductionMode();
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_PRODUCTION_MODE, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_PRODUCTION_MODE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 2, 1, 0, 0, 0, 10] // ACK for Production Mode
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">2 (0x02)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Production Mode</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">PRODUCTION_MODE command (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[2, 0, 0, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Record Serial Command (ASCII) -->
     <tr>
-      <td>4 (0x04)</td>
-      <td>Record Serial</td>
-      <td>0</td>
-      <td>RECORD_SERIAL or STOP_RECORD_SERIAL command (ASCII)</td>
-      <td>[4, 0, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>4 (0x04):</strong> COMMAND_ID for Record Serial</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Start Recording)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_RECORD_SERIAL 4
-
-// Function to handle Record Serial Command
-void handleRecordSerial(uint8_t hardware_id, uint32_t value) {
-    if (value == 1) {
-        startSerialRecording();
-    } else if (value == 0) {
-        stopSerialRecording();
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_RECORD_SERIAL, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_RECORD_SERIAL, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 4, 1, 0, 0, 0, 10] // ACK for Record Serial
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">4 (0x04)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Record Serial</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">RECORD_SERIAL or STOP_RECORD_SERIAL command (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[4, 0, 0, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Light Barrier State -->
     <tr>
-      <td>13</td>
-      <td>Set Light Barrier State</td>
-      <td>Light Barrier ID</td>
-      <td>0 = Inactive, 1 = Active</td>
-      <td>[13, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>13:</strong> COMMAND_ID for Light Barrier State</li>
-          <li><strong>1:</strong> HARDWARE_ID for Light Barrier 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Active)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Define constants
-#define CMD_LIGHT_BARRIER_STATE 13
-
-// Function to handle Light Barrier State Command
-void handleLightBarrierState(uint8_t hardware_id, uint32_t value) {
-    LightBarrier* lb = getLightBarrierById(hardware_id);
-    if (lb == NULL) {
-        // Handle invalid Light Barrier ID
-        sendErrorResponse(CMD_LIGHT_BARRIER_STATE, hardware_id);
-        return;
-    }
-
-    if (value == 0) {
-        lb->state = INACTIVE;
-        // Implement hardware-specific light barrier deactivation
-        deactivateLightBarrier(lb);
-    } else if (value == 1) {
-        lb->state = ACTIVE;
-        // Implement hardware-specific light barrier activation
-        activateLightBarrier(lb);
-    } else {
-        // Handle invalid value
-        sendErrorResponse(CMD_LIGHT_BARRIER_STATE, hardware_id);
-        return;
-    }
-
-    // Send acknowledgment response
-    sendAckResponse(CMD_LIGHT_BARRIER_STATE, hardware_id);
-}
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Response Sent
-[7, 13, 1, 0, 0, 0, 10] // ACK for Light Barrier State
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">13</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Light Barrier State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Light Barrier ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = Inactive, 1 = Active</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[13, 1, 1, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Example Command: Change LED Intensity -->
     <tr>
-      <td>8</td>
-      <td>Set LED Intensity</td>
-      <td>LED ID</td>
-      <td>Intensity Level (0-100)</td>
-      <td>[8, 2, 81, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>8:</strong> COMMAND_ID for LED Intensity</li>
-          <li><strong>2:</strong> HARDWARE_ID for LED 2</li>
-          <li><strong>81, 0, 0, 0:</strong> VALUE = 81 (0x51)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Example: Change intensity of LED 2 to 81% and update
-handleLEDIntensity(2, 81);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-// Example Log Messages Generated
-[15:51:00] Logs cleared.
-[15:51:02] Changing intensity of LED 2 to 81%...
-[15:51:02] Command Sent: [8, 2, 81, 0, 0, 0, 10]
-[15:51:02] LED 2 updated to ON with intensity 81%
-[15:51:02] Intensity of LED 2 set to 81%.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">8</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set LED Intensity</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">LED ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Intensity Level (0-100)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[8, 2, 81, 0, 0, 0, 10]</td>
     </tr>
-    
-    <!-- Additional Commands -->
-    <!-- Add more rows here for any additional commands -->
   </tbody>
 </table>
-
 
 
 
