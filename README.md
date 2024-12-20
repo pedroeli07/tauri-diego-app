@@ -270,15 +270,21 @@ bun tauri:build
 ### 2. **Control Hardware Components**
 
 - **🟢 LEDs**  
-   - Toggle LEDs **ON/OFF** and adjust their intensity using sliders or input fields.  
-   - Click the **Update** icon to confirm the changes.
+   - To control the LEDs, ensure a serial port is connected; otherwise, no actions can be performed.  
+   - LEDs can be toggled **ON/OFF** directly or by selecting an intensity value using sliders or input fields and clicking the **Update** button.  
+   - When the **Update** button is clicked, the selected intensity is sent as a command to the printer via the connected serial port.  
+   - Once the printer processes the command and sends a response back, the LED's status is updated in the interface accordingly.
 
 - **⚙️ Motors**  
-   - Start or stop motors, adjust their **speed**, and switch the **direction** between clockwise (CW) and counterclockwise (CCW).  
-   - Use the **Update** icon to apply speed and direction changes.
+   - Motors also require a connected serial port for interaction.  
+   - You can start or stop motors by toggling their status, or set a specific **speed** using sliders or input fields and clicking the **Update** button to send the command.  
+   - The **direction** of the motor can be switched between clockwise (CW) and counterclockwise (CCW) using the direction toggle.  
+   - Upon receiving a response from the printer, the motor's status, speed, and direction are reflected in the GUI.
 
 - **💡 Light Barriers**  
-   - Monitor the status of light barriers in real time with visual indicators on the interface.
+   - Monitor the real-time status of light barriers with visual indicators on the interface.  
+   - The interface updates automatically based on the printer's responses through the serial connection.
+
 
 ---
 
