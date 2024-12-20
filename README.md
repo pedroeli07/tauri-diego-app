@@ -484,91 +484,152 @@ Here, `100` is stored as `0x64 0x00 0x00 0x00` in little-endian form:
 `[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
 
 ## Detailed Command Table
+### Serial Communication Protocol (Binary Format)
 
-<table border="1" cellspacing="0" cellpadding="5">
+Com a transição para um protocolo de comunicação baseado em binário, a aplicação DCubed 3D Printer Controller Developer agora interage com o firmware da impressora utilizando mensagens binárias de comprimento fixo de 7 bytes, em vez de strings ASCII delimitadas. Essa abordagem aprimora a eficiência, a consistência e reduz a probabilidade de erros de comunicação.
+
+#### Overview
+
+- **Protocol Type**: Binary (mensagens de 7 bytes de comprimento fixo)
+- **Purpose**: Controlar componentes de hardware (LEDs, Motores) e gerenciar comandos a nível de sistema.
+- **Compatibility**: Abordagem híbrida utilizando binário para comandos relacionados ao hardware e ASCII para comandos a nível de sistema (por exemplo, RESET, PRODUCTION_MODE).
+
+#### Command Structure (Binary)
+
+Todos os comandos enviados da aplicação para o firmware da impressora seguem um formato binário fixo de 7 bytes:
+
+[COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes, little-endian), '\n' (1 byte)]
+
+less
+Copiar código
+
+**Field Descriptions:**
+
+- **COMMAND_ID (1 byte)**: Identificador numérico representando o tipo de comando (por exemplo, ligar/desligar LED, estado do motor).
+- **HARDWARE_ID (1 byte)**: ID numérico do componente de hardware específico (por exemplo, número do LED, número do Motor).
+- **VALUE (4 bytes, little-endian)**: Inteiro sem sinal de 32 bits representando o valor do parâmetro.
+  - **LEDs**: Intensidade (0-100)
+  - **Motores**: Velocidade (0-5000), Direção (0 ou 1), Estado (0 ou 1)
+- **END_CHAR (1 byte)**: Caractere de nova linha (0x0A) indicando o final do comando.
+
+**Exemplo: Turn on LED 3 at 100% intensity**
+
+- **COMMAND_ID**: 7 (LED State)
+- **HARDWARE_ID**: 3 (LED Number)
+- **VALUE**: 100 (0x64 em hexadecimal)
+- **Binary Message**: `[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
+
+Aqui, 100 é armazenado como `0x64 0x00 0x00 0x00` em formato little-endian: `[7, 3, 0x64, 0x00, 0x00, 0x00, 0x0A]`
+
+#### Detailed Command Table
+
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
   <thead>
-    <tr>
-      <th>COMMAND_ID</th>
-      <th>Action</th>
-      <th>HARDWARE_ID</th>
-      <th>VALUE Interpretation</th>
+    <tr style="background-color: #f2f2f2;">
+      <th style="border: 1px solid #ddd; padding: 12px;">COMMAND_ID</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Device</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Action</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Parameters</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Example Command</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-      <td>1</td>
-      <td>Motor Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Direction</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = CW, 1 = CCW</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[1, 1, 0, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>2</td>
-      <td>Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">2</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Speed</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[2, 1, 0x88, 0x13, 0x00, 0x00, 10]</td>
     </tr>
     <tr>
-      <td>3</td>
-      <td>Motor State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">3</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set State</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[3, 1, 1, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>7</td>
-      <td>LED State</td>
-      <td>LED ID</td>
-      <td>0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">7</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">LED 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set State</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[7, 1, 1, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>8</td>
-      <td>LED Intensity</td>
-      <td>LED ID</td>
-      <td>Intensity Level (0-100)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">8</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">LED 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Intensity</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Intensity Level (0-100)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[8, 1, 70, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>9</td>
-      <td>LED Combined Update</td>
-      <td>LED ID</td>
-      <td>Combination of state and intensity: (Intensity << 16) | State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">9</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">LED 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Combined Update</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">(Intensity << 16) | State</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[9, 1, 70, 1, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>10</td>
-      <td>Motor Toggle State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">10</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Toggle State</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[10, 1, 1, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>11</td>
-      <td>Adjust Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">11</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Adjust Speed</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[11, 1, 0xDC, 0x05, 0x00, 0x00, 10]</td>
     </tr>
     <tr>
-      <td>12</td>
-      <td>Motor Toggle Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">12</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Motor 1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Toggle Direction</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = CW, 1 = CCW</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[12, 1, 1, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>0x01</td>
-      <td>Reset</td>
-      <td>0x00</td>
-      <td>RESET\n (legacy ASCII command)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0x01</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">System</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Reset</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">RESET\n (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[1, 0, 0, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>0x02</td>
-      <td>Production Mode</td>
-      <td>0x00</td>
-      <td>PRODUCTION_MODE\n (legacy ASCII command)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0x02</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">System</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Production Mode</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">PRODUCTION_MODE\n (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[2, 0, 0, 0, 0, 0, 10]</td>
     </tr>
     <tr>
-      <td>0x04</td>
-      <td>Record Serial</td>
-      <td>0x00</td>
-      <td>RECORD_SERIAL\n or STOP_RECORD_SERIAL\n (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">0x04</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">System</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Record Serial</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">RECORD_SERIAL\n ou STOP_RECORD_SERIAL\n (ASCII)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[4, 0, 0, 0, 0, 0, 10]</td>
     </tr>
   </tbody>
 </table>
+
+---
+
+### Explicação das Colunas
+
+1. **COMMAND_ID**: Identificador único para cada comando.
+2. **Device**: Dispositivo alvo do comando (e.g., Motor 1, LED 1).
+3. **Action**: Ação a ser executada (e.g., Set Direction, Set Speed).
+4. **Parameters**: Parâmetros necessários para a ação (e.g., valores de velocidade ou direção).
+5. **Example Command**: Exemplo de comando enviado, representado como um array de bytes.
 
 **Note:** Commands like RESET, PRODUCTION_MODE, RECORD_SERIAL, and STOP_RECORD_SERIAL remain ASCII-based for compatibility and simplicity. The binary protocol is primarily used for hardware-related commands (LED, Motor, Light Barrier).
 
