@@ -626,9 +626,9 @@ typedef struct {
 
 Utility Functions for Command Construction and Transmission
 Below are example functions in C for building and sending binary commands:
+```
 
-c
-Copiar código
+```c
 #include <stdint.h>
 #include <string.h>
 
@@ -669,6 +669,7 @@ int main() {
     }
     return 0;
 }
+```
 
 ## 🛠️ C/C++ Integration Guide (Binary Protocol)
 
