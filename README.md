@@ -1481,499 +1481,134 @@ We welcome contributions from the community! Please follow these steps to contri
 
 This project is licensed under the [MIT License](https://opensource.org/licenses/MIT). See the [LICENSE](LICENSE) file for more details.
 
-<table border="1" cellspacing="0" cellpadding="10">
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
   <thead>
-    <tr>
-      <th>COMMAND_ID</th>
-      <th>Action</th>
-      <th>HARDWARE_ID</th>
-      <th>VALUE Interpretation</th>
-      <th>Example Action</th>
-      <th>Example Command Sent</th>
-      <th>Command Breakdown</th>
-      <th>C/C++ Code Example</th>
-      <th>Example Log Messages</th>
+    <tr style="background-color: #f2f2f2;">
+      <th style="border: 1px solid #ddd; padding: 12px;">COMMAND_ID</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Action</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">HARDWARE_ID</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">VALUE Interpretation</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Example Action</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Example Command Sent</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Command Breakdown</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">C/C++ Code Example</th>
+      <th style="border: 1px solid #ddd; padding: 12px;">Example Log Messages</th>
     </tr>
   </thead>
   <tbody>
     <!-- Motor Direction -->
     <tr>
-      <td>1</td>
-      <td>Set Motor Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
-      <td>Set Motor 1 to Clockwise (CW)</td>
-      <td>[1, 1, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">1</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor Direction</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor 1 to Clockwise (CW)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[1, 1, 0, 0, 0, 0, 10]</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <ul style="margin: 0; padding-left: 20px;">
           <li><strong>1:</strong> COMMAND_ID for Motor Direction</li>
           <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
           <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (CW)</li>
           <li><strong>10:</strong> END_CHAR (Newline)</li>
         </ul>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 // Set Motor 1 to Clockwise
 SerialCommand cmd;
 build_command(&cmd, CMD_MOTOR_DIRECTION, 1, 0);
 send_serial_command(&cmd);
-        </code></pre>
+</code>
+        </pre>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 [15:51:02] Changing direction of Motor 1 to CW...
 [15:51:02] Command Sent: [1, 1, 0, 0, 0, 0, 10]
 [15:51:02] Motor 1 direction set to CW.
 [15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
+</code>
+        </pre>
       </td>
     </tr>
-    
+
     <!-- Motor Speed -->
     <tr>
-      <td>2</td>
-      <td>Set Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
-      <td>Set Motor 1 speed to 2500 Hz</td>
-      <td>[2, 1, 208, 9, 0, 0, 10]</td>
-      <td>
-        <ul>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">2</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor Speed</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Speed in Hz (0-5000)</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor 1 speed to 2500 Hz</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[2, 1, 208, 9, 0, 0, 10]</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <ul style="margin: 0; padding-left: 20px;">
           <li><strong>2:</strong> COMMAND_ID for Motor Speed</li>
           <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
           <li><strong>208, 9, 0, 0:</strong> VALUE = 2500 (0x09D0)</li>
           <li><strong>10:</strong> END_CHAR (Newline)</li>
         </ul>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 // Set Motor 1 speed to 2500 Hz
 SerialCommand cmd;
 build_command(&cmd, CMD_MOTOR_SPEED, 1, 2500);
 send_serial_command(&cmd);
-        </code></pre>
+</code>
+        </pre>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 [15:51:02] Setting speed of Motor 1 to 2500 Hz...
 [15:51:02] Command Sent: [2, 1, 208, 9, 0, 0, 10]
 [15:51:02] Motor 1 speed set to 2500 Hz.
 [15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
+</code>
+        </pre>
       </td>
     </tr>
+
+    <!-- Adicione mais linhas conforme necessário seguindo o mesmo padrão -->
     
-    <!-- Motor State -->
+    <!-- Exemplo de outra linha (Motor State) -->
     <tr>
-      <td>3</td>
-      <td>Set Motor State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>Turn Motor 1 ON</td>
-      <td>[3, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">3</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Set Motor State</td>
+      <td style="border: 1px solid #ddd; padding: 10px; text-align: center;">Motor ID</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">0 = OFF, 1 = ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">Turn Motor 1 ON</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">[3, 1, 1, 0, 0, 0, 10]</td>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <ul style="margin: 0; padding-left: 20px;">
           <li><strong>3:</strong> COMMAND_ID for Motor State</li>
           <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
           <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (ON)</li>
           <li><strong>10:</strong> END_CHAR (Newline)</li>
         </ul>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 // Turn Motor 1 ON
 SerialCommand cmd;
 build_command(&cmd, CMD_MOTOR_STATE, 1, 1);
 send_serial_command(&cmd);
-        </code></pre>
+</code>
+        </pre>
       </td>
-      <td>
-        <pre><code>
+      <td style="border: 1px solid #ddd; padding: 10px;">
+        <pre style="background-color: #f9f9f9; padding: 10px; border-radius: 5px;">
+<code>
 [15:51:02] Turning Motor 1 ON...
 [15:51:02] Command Sent: [3, 1, 1, 0, 0, 0, 10]
 [15:51:02] Motor 1 is now ON.
 [15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- LED State -->
-    <tr>
-      <td>7</td>
-      <td>Set LED State</td>
-      <td>LED ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>Turn LED 2 ON</td>
-      <td>[7, 2, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>7:</strong> COMMAND_ID for LED State</li>
-          <li><strong>2:</strong> HARDWARE_ID for LED 2</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (ON)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Turn LED 2 ON
-SerialCommand cmd;
-build_command(&cmd, CMD_LED_STATE, 2, 1);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Turning LED 2 ON...
-[15:51:02] Command Sent: [7, 2, 1, 0, 0, 0, 10]
-[15:51:02] LED 2 is now ON.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- LED Intensity -->
-    <tr>
-      <td>8</td>
-      <td>Set LED Intensity</td>
-      <td>LED ID</td>
-      <td>Intensity Level (0-100)</td>
-      <td>Set LED 3 intensity to 70%</td>
-      <td>[8, 3, 70, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>8:</strong> COMMAND_ID for LED Intensity</li>
-          <li><strong>3:</strong> HARDWARE_ID for LED 3</li>
-          <li><strong>70, 0, 0, 0:</strong> VALUE = 70 (0x46)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Set LED 3 intensity to 70%
-SerialCommand cmd;
-build_command(&cmd, CMD_LED_INTENSITY, 3, 70);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Changing intensity of LED 3 to 70%...
-[15:51:02] Command Sent: [8, 3, 70, 0, 0, 0, 10]
-[15:51:02] LED 3 updated to ON with intensity 70%
-[15:51:02] Intensity of LED 3 set to 70%.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- LED Combined Update -->
-    <tr>
-      <td>9</td>
-      <td>LED Combined Update</td>
-      <td>LED ID</td>
-      <td>Combination of state and intensity: (Intensity << 16) | State</td>
-      <td>Set LED 3 to ON with 70% intensity</td>
-      <td>[9, 3, 70, 1, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>9:</strong> COMMAND_ID for LED Combined Update</li>
-          <li><strong>3:</strong> HARDWARE_ID for LED 3</li>
-          <li><strong>70, 1, 0, 0:</strong> VALUE = (70 << 16) | 1 = 0x00014601</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Set LED 3 to ON with 70% intensity
-uint32_t combined_value = (70 << 16) | 1;
-SerialCommand cmd;
-build_command(&cmd, CMD_LED_COMBINED_UPDATE, 3, combined_value);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Updating LED 3 to ON with intensity 70%...
-[15:51:02] Command Sent: [9, 3, 70, 1, 0, 0, 10]
-[15:51:02] LED 3 updated to ON with intensity 70%
-[15:51:02] Intensity of LED 3 set to 70%.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Motor Toggle State -->
-    <tr>
-      <td>10</td>
-      <td>Toggle Motor State</td>
-      <td>Motor ID</td>
-      <td>0 = OFF, 1 = ON</td>
-      <td>Toggle Motor 1 State</td>
-      <td>[10, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>10:</strong> COMMAND_ID for Motor Toggle State</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Toggle to ON)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Toggle Motor 1 State
-SerialCommand cmd;
-build_command(&cmd, CMD_MOTOR_TOGGLE_STATE, 1, 1);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Toggling state of Motor 1...
-[15:51:02] Command Sent: [10, 1, 1, 0, 0, 0, 10]
-[15:51:02] Motor 1 state toggled to ON.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Adjust Motor Speed -->
-    <tr>
-      <td>11</td>
-      <td>Adjust Motor Speed</td>
-      <td>Motor ID</td>
-      <td>Speed in Hz (0-5000)</td>
-      <td>Set Motor 1 speed to 1500 Hz</td>
-      <td>[11, 1, 220, 5, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>11:</strong> COMMAND_ID for Adjust Motor Speed</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>220, 5, 0, 0:</strong> VALUE = 1500 (0x05DC)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Set Motor 1 speed to 1500 Hz
-SerialCommand cmd;
-build_command(&cmd, CMD_MOTOR_ADJUST_SPEED, 1, 1500);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Adjusting speed of Motor 1 to 1500 Hz...
-[15:51:02] Command Sent: [11, 1, 220, 5, 0, 0, 10]
-[15:51:02] Motor 1 speed adjusted to 1500 Hz.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Motor Toggle Direction -->
-    <tr>
-      <td>12</td>
-      <td>Toggle Motor Direction</td>
-      <td>Motor ID</td>
-      <td>0 = CW (Clockwise), 1 = CCW (Counter-clockwise)</td>
-      <td>Toggle Motor 1 direction to CCW</td>
-      <td>[12, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>12:</strong> COMMAND_ID for Motor Toggle Direction</li>
-          <li><strong>1:</strong> HARDWARE_ID for Motor 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (CCW)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Toggle Motor 1 Direction to CCW
-SerialCommand cmd;
-build_command(&cmd, CMD_MOTOR_TOGGLE_DIRECTION, 1, 1);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Toggling direction of Motor 1 to CCW...
-[15:51:02] Command Sent: [12, 1, 1, 0, 0, 0, 10]
-[15:51:02] Motor 1 direction toggled to CCW.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Reset Command (ASCII) -->
-    <tr>
-      <td>1 (0x01)</td>
-      <td>Reset System</td>
-      <td>0</td>
-      <td>RESET command (ASCII)</td>
-      <td>Send RESET command</td>
-      <td>[1, 0, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>1 (0x01):</strong> COMMAND_ID for Reset</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (Not used)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Send RESET command
-SerialCommand cmd;
-build_command(&cmd, CMD_RESET, 0, 0);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Sending RESET command...
-[15:51:02] Command Sent: [1, 0, 0, 0, 0, 0, 10]
-[15:51:02] System reset initiated.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Production Mode Command (ASCII) -->
-    <tr>
-      <td>2 (0x02)</td>
-      <td>Set Production Mode</td>
-      <td>0</td>
-      <td>PRODUCTION_MODE command (ASCII)</td>
-      <td>Switch to Production Mode</td>
-      <td>[2, 0, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>2 (0x02):</strong> COMMAND_ID for Production Mode</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (Not used)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Switch to Production Mode
-SerialCommand cmd;
-build_command(&cmd, CMD_PRODUCTION_MODE, 0, 0);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Switching to Production Mode...
-[15:51:02] Command Sent: [2, 0, 0, 0, 0, 0, 10]
-[15:51:02] Production Mode activated.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Record Serial Command (ASCII) -->
-    <tr>
-      <td>4 (0x04)</td>
-      <td>Record Serial</td>
-      <td>0</td>
-      <td>RECORD_SERIAL or STOP_RECORD_SERIAL command (ASCII)</td>
-      <td>Start Serial Recording</td>
-      <td>[4, 0, 0, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>4 (0x04):</strong> COMMAND_ID for Record Serial</li>
-          <li><strong>0:</strong> HARDWARE_ID (Not used)</li>
-          <li><strong>0, 0, 0, 0:</strong> VALUE = 0 (Not used)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Start Serial Recording
-SerialCommand cmd;
-build_command(&cmd, CMD_RECORD_SERIAL, 0, 0);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Starting Serial Recording...
-[15:51:02] Command Sent: [4, 0, 0, 0, 0, 0, 10]
-[15:51:02] Serial Recording started.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Light Barrier State -->
-    <tr>
-      <td>13</td>
-      <td>Set Light Barrier State</td>
-      <td>Light Barrier ID</td>
-      <td>0 = Inactive, 1 = Active</td>
-      <td>Activate Light Barrier 1</td>
-      <td>[13, 1, 1, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>13:</strong> COMMAND_ID for Light Barrier State</li>
-          <li><strong>1:</strong> HARDWARE_ID for Light Barrier 1</li>
-          <li><strong>1, 0, 0, 0:</strong> VALUE = 1 (Active)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Activate Light Barrier 1
-SerialCommand cmd;
-build_command(&cmd, CMD_LIGHT_BARRIER_STATE, 1, 1);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:02] Activating Light Barrier 1...
-[15:51:02] Command Sent: [13, 1, 1, 0, 0, 0, 10]
-[15:51:02] Light Barrier 1 is now Active.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
-      </td>
-    </tr>
-    
-    <!-- Example Command: Change LED Intensity -->
-    <tr>
-      <td>8</td>
-      <td>Set LED Intensity</td>
-      <td>LED ID</td>
-      <td>Intensity Level (0-100)</td>
-      <td>Change intensity of LED 2 to 81% and update</td>
-      <td>[8, 2, 81, 0, 0, 0, 10]</td>
-      <td>
-        <ul>
-          <li><strong>8:</strong> COMMAND_ID for LED Intensity</li>
-          <li><strong>2:</strong> HARDWARE_ID for LED 2</li>
-          <li><strong>81, 0, 0, 0:</strong> VALUE = 81 (0x51)</li>
-          <li><strong>10:</strong> END_CHAR (Newline)</li>
-        </ul>
-      </td>
-      <td>
-        <pre><code>
-// Change intensity of LED 2 to 81% and update
-SerialCommand cmd;
-build_command(&cmd, CMD_LED_INTENSITY, 2, 81);
-send_serial_command(&cmd);
-        </code></pre>
-      </td>
-      <td>
-        <pre><code>
-[15:51:00] Logs cleared.
-[15:51:02] Changing intensity of LED 2 to 81%...
-[15:51:02] Command Sent: [8, 2, 81, 0, 0, 0, 10]
-[15:51:02] LED 2 updated to ON with intensity 81%
-[15:51:02] Intensity of LED 2 set to 81%.
-[15:51:02] Serial event listeners set up successfully (binary).
-        </code></pre>
+</code>
+        </pre>
       </td>
     </tr>
   </tbody>
