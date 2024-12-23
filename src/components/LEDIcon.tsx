@@ -1,28 +1,61 @@
 // src/components/LEDIcon.tsx
+
 import React from "react";
+
+interface LEDIconProps {
+  intensity: number; // LED intensity (0 to 100)
+  status: "ON" | "OFF"; // LED status
+}
 
 /**
  * A component that renders an LED icon with a glow effect based on the `intensity` prop.
  * The `intensity` prop is a number between 0 and 100, where 0 is off and 100 is maximum brightness.
- * The glow effect is animated when the intensity is above 50.
- * @param {{ intensity: number }} props
+ * @param {{ intensity: number, status: "ON" | "OFF" }} props
  * @returns {React.ReactElement}
  */
-const LEDIcon = ({ intensity }: { intensity: number }) => {
-  // Define um valor mínimo de opacidade para quando estiver desligado
-  const adjustedIntensity = intensity === 0 ? 0.1 : Math.min(1, intensity / 100);
+const LEDIcon: React.FC<LEDIconProps> = ({ intensity, status }) => {
+  /**
+   * Function to determine the fill color based on intensity and status.
+   */
+  const getColor = (): string => {
+    if (status === "OFF") {
+      return "rgba(75, 75, 75, 1)"; // Gray color when OFF
+    }
+    // Calculate color based on intensity using HSL (Hue: 270 for violet)
+    const lightness = 90 - (intensity / 100) * 50; // From 90% (very light) to 40% (vibrant)
+    return `hsl(270, 100%, ${lightness}%)`;
+  };
+
+  /**
+   * Function to determine the shadow opacity based on intensity.
+   */
+  const getShadowOpacity = (): number => {
+    if (status === "OFF") return 0;
+    // Opacity ranges from 0.1 (intensity 0) to 1 (intensity 100)
+    return 0.1 + (intensity / 100) * 0.9;
+  };
+
+  /**
+   * Function to determine the responsive size classes.
+   */
+  const getSizeClasses = (): string => {
+    return "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24";
+  };
 
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 55.91 55.91"
-      className="w-32 h-32 mx-auto"
+      className={`${getSizeClasses()} mx-auto`}
       style={{
-        filter: `drop-shadow(0 0 ${Math.max(1, intensity / 5)}px rgba(128, 0, 255, ${adjustedIntensity}))`,
+        filter:
+          status === "ON"
+            ? `drop-shadow(0 0 ${Math.max(1, intensity / 5)}px rgba(128, 0, 255, ${getShadowOpacity()}))`
+            : "none",
       }}
     >
       <path
-        fill={`rgba(128, 0, 255, ${adjustedIntensity})`}
+        fill={getColor()}
         d="M55.703,29.779c-0.217-0.391-0.569-0.673-0.998-0.797l-18.135-5.2v-10.62c0-0.396-0.219-0.758-0.568-0.942
          c-0.125-0.066-0.26-0.096-0.396-0.109c-0.002,0-0.004-0.002-0.006-0.002l-2.146-0.398c0.943-0.386,2.207-0.381,3.299,0.071
          c0.63,0.245,1.244,0.703,1.896,1.188c0.889,0.661,1.807,1.343,2.986,1.68c3.655,0.887,7.141-1.318,9.688-2.93
@@ -42,4 +75,3 @@ const LEDIcon = ({ intensity }: { intensity: number }) => {
 };
 
 export default LEDIcon;
-

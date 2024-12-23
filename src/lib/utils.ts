@@ -1,7 +1,7 @@
 //src/lib/utils
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { LED, LightBarrier, Log, Motor, Status } from "./types";
+import { LED, LightBarrier, Log, Motor, LightBarrierStatus } from "./types";
 
 
 export function cn(...inputs: ClassValue[]) {
@@ -35,6 +35,7 @@ export const addLog = (
     {
       message: `[${new Date().toLocaleTimeString()}] ${message}`,
       type,
+      timestamp: new Date().toISOString(), // Adicionando timestamp
     },
   ]);
 };
@@ -51,10 +52,10 @@ export const addLogs = (
     {
       message: `[${new Date().toLocaleTimeString()}] ${message}`,
       type,
+      timestamp: new Date().toISOString(), // Adicionando timestamp
     },
   ]);
 };
-
 
 /**
  * Deleta um log específico e retorna a nova lista de logs.
@@ -85,7 +86,8 @@ export const utilAddLog = (
     {
       message: `[${new Date().toLocaleTimeString()}] ${message}`,
       type,
-      color: logColor, // Adicionando a cor ao log
+      color: logColor,
+      timestamp: new Date().toISOString(), // Adicionando timestamp
     },
   ];
 };
@@ -107,11 +109,13 @@ export const initialMotors: Motor[] = [
 
 // Estado Inicial das Light Barriers
 export const initialLightBarriers = [
-  { id: 1, status: Status.OK, lastChanged: "No Info" },
-  { id: 2, status: Status.OK, lastChanged: "No Info" },
-  { id: 3, status: Status.OK, lastChanged: "No Info" },
-  { id: 4, status: Status.OK, lastChanged: "No Info" },
+  { id: 1, status: LightBarrierStatus.INACTIVE, lastChanged: "No Info" },
+  { id: 2, status: LightBarrierStatus.INACTIVE, lastChanged: "No Info" },
+  { id: 3, status: LightBarrierStatus.INACTIVE, lastChanged: "No Info" },
+  { id: 4, status: LightBarrierStatus.INACTIVE, lastChanged: "No Info" },
 ];
+
+
 
 export const initialLeds: LED[] = [
   { id: 1, status: "OFF", intensity: 0, lastChanged: "No Info" },

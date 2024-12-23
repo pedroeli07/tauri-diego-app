@@ -4,6 +4,7 @@
 
 // Importing the `serial_wrapper` module which contains serial port handling functions.
 mod serial_wrapper;
+use crate::serial_wrapper::backend_log; // if both files are in the same crate
 
 // Importing necessary crates and modules.
 use serialport::SerialPort; // Trait for serial port operations.
@@ -20,10 +21,10 @@ use std::time::SystemTime; // Struct for handling system time.
 use chrono::{DateTime, Local}; // Crate for date and time handling.
 
 // Struct representing serial port configuration items.
+#[derive(Debug)]
 pub struct PortItems {
-    port_path: String, // Path to the serial port.
-    baud_rate: u32, // Baud rate for serial communication.
-    ending: String, // Line ending characters (e.g., "\n").
+    port_path: String,
+    baud_rate: u32,
 }
 
 // Struct representing the application's data state.
@@ -40,101 +41,113 @@ pub struct AppData(Mutex<Data>);
 
 // Command to set serial port configuration items.
 #[tauri::command]
-fn set_port_items(state: State<AppData>, port: &str, baud: &str, ending: &str){
-    // Acquire the lock on the state.
+fn set_port_items(
+    app: tauri::AppHandle,
+    state: State<AppData>,
+    port: &str,
+    baud: &str,
+) {
     let mut state_guard = state.0.lock().unwrap();
-    
-    // Update the port items with new values.
+
+    // Instead of println!(...), just call `backend_log`.
+    backend_log(
+        &app,
+        &format!("Setting serial port config: port='{}', baud='{}'", port, baud),
+        "INFO",
+    );
+
+    // ... do logic ...
     state_guard.port_items = PortItems {
         port_path: port.to_string(),
-        baud_rate: baud.to_string().parse::<u32>().unwrap(), // Parse baud rate from string to u32.
-        ending: ending.to_string()
+        baud_rate: baud.parse().expect("Invalid baud"),
     };
+
+    backend_log(
+        &app,
+        &format!("Serial port config updated: {:?}", state_guard.port_items),
+        "SUCCESS",
+    );
 }
 
 // Command to handle serial port connection.
 #[tauri::command]
-fn handle_serial_connect(app: tauri::AppHandle) -> bool {
-
-    // Clone the app handle for use in the thread.
+fn handle_serial_connect(app: tauri::AppHandle) -> Result<bool, String> {
     let app_clone = app.clone();
-    
-    // Retrieve the application state.
     let state = app_clone.state::<AppData>();
-    
-    // Acquire the lock on the state.
     let mut state_guard = state.0.lock().unwrap();
 
-    // Check if the application is currently recording.
     if state_guard.is_recording {
-        // Display an error message if recording is active.
-        rfd::MessageDialog::new()
-        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
-        .set_title("Port Error") // Set the dialog title.
-        .set_description("Please stop recording before disconnecting") // Set the dialog description.
-        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
-        .show();
-        return true;
+        // Emit a log before returning the error.
+        backend_log(&app, "Cannot connect: recording is active. Stop recording first.", "ERROR");
+        return Err("Please stop recording before disconnecting.".to_string());
     }
 
-    // Check if a serial port is already connected.
     match &state_guard.port {
-        // If a port exists, proceed to disconnect.
+        // If already connected, disconnect.
         Some(_) => {
-            println!("Killing thread"); // Log the action.
-            // Signal the thread to stop by setting the flag to false.
+            // Instead of println!("Disconnecting...");
+            backend_log(&app, "Disconnecting...", "INFO");
+
             state_guard.is_thread_open.store(false, Ordering::Relaxed);
-            // Wait for the thread to acknowledge the stop signal.
-            while !state_guard.is_thread_open.load(Ordering::Relaxed) {}
-            // Remove the serial port from the state.
+            while state_guard.is_thread_open.load(Ordering::Relaxed) {}
             state_guard.port = None;
-            return false; // Indicate that the port has been disconnected.
+            // Another log
+            backend_log(&app, "Serial port successfully disconnected.", "SUCCESS");
+
+            Ok(false)
         }
-        // If no port is connected, attempt to connect.
+        // If not connected, try to connect.
         None => {
-            // Initialize the serial port using the provided configuration.
-            let port = serial_wrapper::init_port(state_guard.port_items.port_path.to_string(), state_guard.port_items.baud_rate);
-            // Check if the port was successfully opened.
-            match port {
+            backend_log(&app, "Attempting to connect to serial port...", "INFO");
+
+            let available_ports = serial_wrapper::list_ports(app_clone.clone());
+            if !available_ports.contains(&state_guard.port_items.port_path) {
+                let msg = format!(
+                    "The specified port '{}' is not available.",
+                    state_guard.port_items.port_path
+                );
+                backend_log(&app, &msg, "ERROR");
+                return Err(msg);
+            }
+
+            let port_result = serial_wrapper::init_port(
+                app_clone.clone(),
+                state_guard.port_items.port_path.to_string(),
+                state_guard.port_items.baud_rate,
+            );
+
+            match port_result {
                 Ok(port) => {
-                    // Clone the port for thread usage.
                     let port_clone = port.try_clone().expect("Couldn't clone port");
-                    // Store the port in the application state.
                     state_guard.port = Some(port);
-                    // Clone the thread open flag for thread communication.
+
+                    // Start reading thread
                     let is_thread_open_ref = state_guard.is_thread_open.clone();
-                    // Start the serial reading thread.
-                    serial_wrapper::start_clone_thread(app.clone(), port_clone, is_thread_open_ref);
+                    serial_wrapper::start_clone_thread(app_clone.clone(), port_clone, is_thread_open_ref);
+
+                    backend_log(&app, "Serial port connected successfully.", "SUCCESS");
+                    Ok(true)
                 }
                 Err(e) => {
-                    // Format the error message.
-                    let error_description = format!("{}{}", "An error occurred opening port: ", e);
-                    // Display the error message to the user.
-                    rfd::MessageDialog::new()
-                        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
-                        .set_title("Port Error") // Set the dialog title.
-                        .set_description(error_description.as_str()) // Set the dialog description.
-                        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
-                        .show();
-
-                    return false; // Indicate that the port connection failed.
+                    let msg = format!("Error opening port: {}", e);
+                    backend_log(&app, &msg, "ERROR");
+                    Err(msg)
                 }
             }
         }
     }
-    return true; // Indicate that the port connection was successful.
 }
 
-// Command to handle serial port disconnection.
 #[tauri::command]
 fn handle_serial_disconnect(app: tauri::AppHandle) -> bool {
-    let app_clone = app.clone(); // Clone the app handle.
-    let state = app_clone.state::<AppData>(); // Retrieve the application state.
-    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
+    let app_clone = app.clone();
+    let state = app_clone.state::<AppData>();
+    let mut state_guard = state.0.lock().unwrap();
 
     // Check if a serial port is currently connected.
     if let Some(_) = &state_guard.port {
-        println!("Disconnecting serial port..."); // Log the action.
+        // Instead of println!("Disconnecting serial port...");
+        backend_log(&app, "Disconnecting serial port...", "INFO");
 
         // Signal the thread to stop by setting the flag to false.
         state_guard.is_thread_open.store(false, Ordering::Relaxed);
@@ -145,11 +158,13 @@ fn handle_serial_disconnect(app: tauri::AppHandle) -> bool {
         // Remove the serial port from the state.
         state_guard.port = None;
 
-        println!("Serial port disconnected."); // Log the action.
-        return true; // Indicate successful disconnection.
+        // Another log
+        backend_log(&app, "Serial port disconnected.", "SUCCESS");
+        true
     } else {
-        println!("No serial port to disconnect."); // Log the absence of a connected port.
-        return false; // Indicate that there was no port to disconnect.
+        // Instead of println!("No serial port to disconnect.");
+        backend_log(&app, "No serial port to disconnect.", "WARNING");
+        false
     }
 }
 
@@ -180,7 +195,7 @@ fn handle_start_record(app: tauri::AppHandle) -> bool {
                         // Format the date and time as a string for the filename.
                         let formatted_date_time = datetime.format("%Y-%m-%d_%H.%M.%S").to_string();
                         // Create the filename with the formatted date and time.
-                        let file_name = format!("SerialWizard_{}.txt", formatted_date_time);
+                        let file_name = format!("DCubedISM{}.txt", formatted_date_time);
                         // Combine the folder path and filename to get the full file path.
                         let file_path = path.join(file_name);
 
@@ -275,111 +290,155 @@ fn set_folder_path(state: State<AppData>){
 
 // Command to retrieve a list of available serial ports.
 #[tauri::command]
-fn get_ports() -> Vec<String> {
-    return serial_wrapper::list_ports(); // Call the `list_ports` function from `serial_wrapper`.
+fn get_ports(app: tauri::AppHandle) -> Vec<String> {
+    // Instead of just println!:
+    backend_log(&app, "Retrieving list of available serial ports...", "INFO");
+
+    let ports = serial_wrapper::list_ports(app.clone());
+
+    backend_log(
+        &app,
+        &format!("Available ports: {:?}", ports),
+        "INFO"
+    );
+
+    ports
 }
 
+
 // Command to emit an error message to the frontend.
+// Command to emit an error message to the frontend.
+//
+// Note: If you also want to log to the debug box that an error was shown, 
+// you can call `backend_log` here as well.
 #[tauri::command]
-fn emit_error(input: String) {
+fn emit_error(input: String, app: tauri::AppHandle) {
+    backend_log(&app, &format!("Emitting error message: {}", input), "ERROR");
+
     rfd::MessageDialog::new()
-    .set_level(rfd::MessageLevel::Error) // Set the message level to error.
-    .set_title("Port Error") // Set the dialog title.
-    .set_description(input.as_str()) // Set the dialog description.
-    .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
-    .show();
+        .set_level(rfd::MessageLevel::Error)
+        .set_title("Port Error")
+        .set_description(&input)
+        .set_buttons(rfd::MessageButtons::Ok)
+        .show();
 }
+
 
 // Command to send a serial command to the connected device.
 #[tauri::command]
-fn send_serial(state: State<AppData>, input: String) {
-    let mut state_guard = state.0.lock().unwrap(); // Acquire the lock on the state.
-    // Format the input with the configured line ending.
-    let input_format = format!("{}{}", input, state_guard.port_items.ending);
+fn send_serial(app: tauri::AppHandle, state: State<AppData>, input: Vec<u8>) {
+    let mut state_guard = state.0.lock().unwrap();
+
     match &mut state_guard.port {
         Some(port) => {
-            // Attempt to write the formatted input to the serial port.
-            let write = serial_wrapper::write_serial(port, input_format.as_str());
-            match write {
-                Ok(s) => {
-                    println!("Write {} bytes success", s); // Log successful write.
+            backend_log(
+                &app,
+                &format!("Preparing to send message: {:?}", input),
+                "info",
+            );
+
+            match port.write(&input) {
+                Ok(bytes_written) => {
+                    backend_log(
+                        &app,
+                        &format!("Sent {} bytes.", bytes_written),
+                        "success",
+                    );
+                    backend_log(
+                        &app,
+                        &format!(
+                            "Message content (hex): {}",
+                            input.iter()
+                                .map(|b| format!("{:02X}", b))
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                        ),
+                        "success",
+                    );
                 }
                 Err(e) => {
-                    // If writing fails, format the error message.
-                    let error_description =
-                        format!("{}{}", "An error occurred writing to port: ", e);
-                    // Display the error message to the user.
+                    backend_log(
+                        &app,
+                        &format!("Failed to send message: {:?}", e),
+                        "error",
+                    );
                     rfd::MessageDialog::new()
-                        .set_level(rfd::MessageLevel::Error) // Set the message level to error.
-                        .set_title("Write Error") // Set the dialog title.
-                        .set_description(error_description.as_str()) // Set the dialog description.
-                        .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
+                        .set_level(rfd::MessageLevel::Error)
+                        .set_title("Write Error")
+                        .set_description(&format!("An error occurred writing to port: {}", e))
+                        .set_buttons(rfd::MessageButtons::Ok)
                         .show();
                 }
             }
         }
         None => {
-            // If no serial port is connected, display an error message.
+            backend_log(
+                &app,
+                "Attempted to send message without an active port connection.",
+                "error",
+            );
+
             rfd::MessageDialog::new()
-                .set_level(rfd::MessageLevel::Error) // Set the message level to error.
-                .set_title("Port Error") // Set the dialog title.
-                .set_description("Connect to port first.") // Set the dialog description.
-                .set_buttons(rfd::MessageButtons::Ok) // Use Ok button.
+                .set_level(rfd::MessageLevel::Error)
+                .set_title("Port Error")
+                .set_description("Connect to port first.")
+                .set_buttons(rfd::MessageButtons::Ok)
                 .show();
         }
     }
 }
 
+
 // A simple greeting command for testing purposes.
 #[tauri::command]
-fn greet(name: &str) {
-    println!("Hello, {}!", name); // Print a greeting message to the console.
+fn greet(app: tauri::AppHandle, name: String) {
+    // Instead of println!("Hello, {}!"):
+    backend_log(&app, &format!("Greeting user: {}", name), "INFO");
+    // or if you still want to see it in VSCode terminal as plain text:
+    // println!("Hello, {}!", name);
 }
 
 // Command to create a new window in the application.
 #[tauri::command]
 async fn make_window(handle: tauri::AppHandle) {
-    // Build a new window named "Setup" pointing to the "/about" page.
+    backend_log(&handle, "Creating a new 'Setup' window...", "INFO");
+
     tauri::WindowBuilder::new(&handle, "Setup", tauri::WindowUrl::App("/about".into()))
-        .inner_size(500.0, 500.0) // Set the window size.
-        .resizable(false) // Make the window non-resizable.
-        .always_on_top(true) // Keep the window always on top.
-        .title("Setup") // Set the window title.
-        .build() // Build the window.
-        .unwrap(); // Unwrap to handle potential errors.
+        .inner_size(500.0, 500.0)
+        .resizable(false)
+        .always_on_top(true)
+        .title("Setup")
+        .build()
+        .unwrap();
 }
 
 // The main function where the Tauri application is initialized and run.
 fn main() {
-
-    // Initialize the Tauri builder.
     tauri::Builder::default()
         .manage(AppData(
-            // Create a new, uninitialized Data instance wrapped in a Mutex for thread safety.
             Mutex::new(Data {
-                port: None, // No serial port connected initially.
-                folder_path: Some(PathBuf::from("/home")), // Default folder path for recordings.
+                port: None,
+                folder_path: Some(PathBuf::from("/home")),
                 port_items: PortItems {
-                    port_path: String::from(""), // Empty port path initially.
-                    baud_rate: 0, // Baud rate set to 0 initially.
-                    ending: String::from("") // No line ending initially.
+                    port_path: String::new(),
+                    baud_rate: 0,
                 },
-                is_thread_open: Arc::new(AtomicBool::new(true)), // Thread flag set to true.
-                is_recording: false, // Not recording initially.
+                is_thread_open: Arc::new(AtomicBool::new(true)),
+                is_recording: false,
             }),
         ))
         .invoke_handler(tauri::generate_handler![
-            set_port_items, // Handler for setting port items.
-            handle_serial_connect, // Handler for connecting to serial port.
-            handle_start_record, // Handler for starting/stopping recording.
-            set_folder_path, // Handler for setting the recording folder path.
-            greet, // Handler for greeting.
-            get_ports, // Handler for retrieving available serial ports.
-            send_serial, // Handler for sending serial commands.
-            make_window, // Handler for creating new windows.
-            emit_error, // Handler for emitting error messages.
-            handle_serial_disconnect // Handler for disconnecting serial port.
+            set_port_items,
+            handle_serial_connect,
+            handle_start_record,
+            set_folder_path,
+            greet,  // note we changed greet signature to greet(app, name)
+            get_ports,
+            send_serial,
+            make_window,
+            emit_error,
+            handle_serial_disconnect
         ])
-        .run(tauri::generate_context!()) // Run the Tauri application with the generated context.
-        .expect("error while running tauri application"); // Expect no errors during runtime.
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

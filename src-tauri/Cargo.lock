@@ -85,11 +85,12 @@ checksum = "c1fd03a028ef38ba2276dce7e33fcd6369c158a1bca17946c4b1b701891c1ff7"
 
 [[package]]
 name = "app"
-version = "0.1.0"
+version = "1.0.13"
 dependencies = [
  "chrono",
  "env_logger",
  "fs",
+ "lazy_static",
  "log",
  "rfd",
  "serde",
@@ -97,6 +98,7 @@ dependencies = [
  "serialport",
  "tauri",
  "tauri-build",
+ "tokio",
 ]
 
 [[package]]
@@ -4237,9 +4239,23 @@ dependencies = [
  "bytes 1.9.0",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
+ "signal-hook-registry",
  "socket2 0.5.8",
+ "tokio-macros",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
 ]
 
 [[package]]

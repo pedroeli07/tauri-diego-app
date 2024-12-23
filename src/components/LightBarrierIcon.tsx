@@ -1,86 +1,53 @@
-//SRC/components/LightBarrierIcon
-import React from 'react';
-import { motion, Variants } from 'framer-motion';
-import Image from 'next/image';
+import React from "react";
+import { motion, Variants } from "framer-motion";
+import Image from "next/image";
+import { LightBarrierStatus } from "@/lib/types";
 
-enum Status {
-    OK = "OK",
-    ERROR = "ERROR",
-    WARNING = "WARNING",
-  }
-  
 interface LightBarrierIconProps {
-    status: Status; // Usa o enum Status
-
-   color?: string; // Base color for glow
-   glowIntensity?: number; // Intensity of the glow effect
-   glowSpeed?: number; // Speed of glow animation
-   
+  status: LightBarrierStatus; // Usa o enum Status
+  isDisconnected?: boolean; // Adiciona o estado desconectado
 }
 
-const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({
-   status,
-   color = '#FFFFFF',
-   glowIntensity = 1.5,
-   glowSpeed = 2,
-}) => {
-   const getGlowColor = () => {
-      if (status === 'OK') return color;
-      if (status === 'WARNING') return '#f59e0b';
-      return '#6b7280'; // Gray for ERROR
-   };
+const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({ status, isDisconnected }) => {
+  const isActive = status === LightBarrierStatus.ACTIVE && !isDisconnected;
 
-   const glowVariants: Variants = {
-      animate: {
-         boxShadow: [
-            `0 0 ${glowIntensity * 10}px ${glowIntensity * 5}px ${getGlowColor()}`,
-            `0 0 ${glowIntensity * 5}px ${glowIntensity * 2}px ${getGlowColor()}`,
-         ],
-         transition: {
-            duration: glowSpeed,
+  const glowColor = isActive ? "#22c55e" : "#ef4444"; // Verde para ACTIVE, Vermelho para INACTIVE
+
+  const glowVariants: Variants = isDisconnected
+    ? {} // Sem animação quando desconectado
+    : {
+        animate: {
+          boxShadow: [
+            `0 0 12px 6px ${glowColor}`,
+            `0 0 8px 4px ${glowColor}`,
+          ],
+          transition: {
+            duration: 1.5,
             repeat: Infinity,
-            repeatType: 'reverse',
-         },
-      },
-   };
+            repeatType: "reverse",
+          },
+        },
+      };
 
-   return (
-      <motion.div
-         className="relative w-15 h-15 flex items-center justify-center overflow-visible bg-transparent rounded-t-full"
-         variants={glowVariants}
-         animate="animate"
-      >
-         {/* SVG sem fundo */}
-         <Image
-            src="/LBicon.svg"
-            alt="Light Barrier Icon"
-            width="60"
-            height="60"
-            className="relative z-10"
-            style={{ filter: 'drop-shadow(0 0 8px rgba(235, 195, 245, 0.2))' }}
-         />
-
-         {/* Feixe de luz animado */}
-         {status === 'OK' && (
-   <motion.div
-      className="absolute left-0 w-full h-2 bg-gradient-to-r from-transparent via-[#FFFFFF] to-transparent opacity-80"
-      initial={{ y: '0%' }} // Começa no topo
-      animate={{
-         y: ['0%', '100%', '0%'], // Vai até o fundo e volta
-      }}
-      transition={{
-         duration: glowSpeed * 2, // Duração ajustável
-         ease: 'easeInOut', // Movimento suave
-         repeat: Infinity, // Movimento contínuo
-         repeatType: 'mirror', // Espelha o movimento no retorno
-      }}
-      style={{
-         boxShadow: `0 0 12px 6px ${getGlowColor()}`, // Mantém o glow
-      }}
-   />
-)}
-      </motion.div>
-   );
+  return (
+    <motion.div
+      className="relative flex items-center justify-center overflow-visible bg-transparent rounded-full w-16 h-16"
+      variants={glowVariants}
+      animate={!isDisconnected ? "animate" : undefined} // Apenas anima se não estiver desconectado
+    >
+      <Image
+        src="/LBicon.svg"
+        alt="Light Barrier Icon"
+        className="relative z-10 w-full h-full object-contain"
+        style={{
+          filter: isDisconnected ? "none" : `drop-shadow(0 0 6px ${glowColor})`,
+        }}
+        width={64}
+        height={64}
+      />
+    </motion.div>
+  );
 };
+
 
 export default LightBarrierIcon;

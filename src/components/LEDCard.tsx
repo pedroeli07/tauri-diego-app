@@ -1,28 +1,23 @@
-// components/LEDCard.tsx
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import CustomTooltip from './CustomTooltip';
-import {Power, PowerOff,} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import CustomSlider from "@/components/ui/custom-slider";
-import clsx from "clsx"; // Utility for conditional classNames
-import LEDIcon from "@/components/LEDIcon";
+// src/components/LEDCard.tsx
 
-interface LED {
-  id: number;
-  status: 'ON' | 'OFF';
-  intensity: number;
-}
+import React, { useState } from "react";
+import clsx from "clsx";
+import { Button } from "./ui/button"; // Replace with your button component
+import CustomSlider from "./ui/custom-slider"; // Replace with your slider component
+import LEDIcon from "./LEDIcon"; // Updated LEDIcon component
+import { Power, PowerOff } from 'lucide-react';
+import CustomTooltip from './CustomTooltip';
+import { Card, CardContent } from "./ui/card";
+import { Input } from "./ui/input";
+import { LED } from "@/lib/types";
 
 interface LEDCardProps {
   leds: LED[];
   isConnected: boolean;
   isRecording: boolean;
   handleLEDToggle: (id: number) => void;
-  tempIntensity: number;
-  setTempIntensity: (value: number) => void;
-  handleLEDIntensityChange: (id: number, intensity: number) => void;
+  handleLEDSetIntensity: (id: number, intensity: number) => void;
+  isProductionMode: boolean;
 }
 
 const LEDCard: React.FC<LEDCardProps> = ({
@@ -30,106 +25,186 @@ const LEDCard: React.FC<LEDCardProps> = ({
   isConnected,
   isRecording,
   handleLEDToggle,
-  tempIntensity,
-  setTempIntensity,
-  handleLEDIntensityChange
+  handleLEDSetIntensity,
+  isProductionMode
 }) => {
+  const [tempLEDValues, setTempLEDValues] = useState<Record<number, number>>({});
+
+  /**
+   * Function to calculate the border and shadow color based on intensity.
+   */
+  const getStyles = (led: LED): React.CSSProperties => {
+    const intensity = led.intensity / 100; // Normalizar intensidade (0 a 1)
+    const baseColor = led.status === "ON" 
+      ? `hsl(270, 100%, ${30 + intensity * 20}%)` // Cor com base na intensidade
+      : "rgba(50, 50, 50, 1)"; // Cinza escuro para OFF
+  
+    return {
+      borderColor: baseColor, // Cor da borda
+      boxShadow: led.status === "ON" 
+        ? `0 4px 10px rgba(128, 0, 255, ${intensity}), 0 10px 20px rgba(128, 0, 255, ${intensity * 0.8})` 
+        : "none", // Sem sombra para OFF
+      background: led.status === "ON"
+        ? "linear-gradient(to bottom, #1c1c1c, #0a0a0a)" // Gradiente para ON
+        : "rgba(30, 30, 30, 1)", // Fundo sólido cinza escuro para OFF
+      transition: "all 0.3s ease",
+    };
+  };
+
   return (
-    <div className="space-y-4">
-      <Card className="bg-gradient-to-b from-[#08060a] via-[#000000] to-[#08010f] rounded-lg border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow">
-        <CardHeader className="mb-2">
-          <CardTitle className="text-xl text-center text-gray-100">LEDs</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {leds.map((led) => (
-              <div key={led.id} className="flex flex-col space-y-2">
-                {/* LED Card */}
-                <div
+<div className="w-full h-full px-2 py-5 relative -mt-32">
+  {/* Grid: 2 colunas fixas com espaçamento configurado */}
+  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6 w-full">
+    {leds.map((led) => {
+      return (
+        <div key={led.id} className="flex flex-col w-full">
+          <div
+            style={getStyles(led)}
+            className={clsx(
+              "w-[280px] p-6 duration-300 flex flex-col space-y-2 overflow-hidden bg-gradient-to-b from-[#0a0a0a] via-[#070707] to-[#000000] rounded-lg border-double border-4",
+              isRecording && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {/* Cabeçalho do Card */}
+            <div className="flex justify-between items-center">
+              <h3
+                className={clsx(
+                  "text-xl sm:text-2xl font-bold",
+                  led.status === "ON" ? "text-violet-700" : "text-gray-700"
+                )}
+              >
+                LED {led.id}
+              </h3>
+              <CustomTooltip
+                content={
+                  led.status === "ON"
+                    ? `Turn Off LED ${led.id}`
+                    : `Turn On LED ${led.id}`
+                }
+                placement="right"
+              >
+                <Button
+                  onClick={() => handleLEDToggle(led.id)}
+                  disabled={!isConnected || isProductionMode}
+                  variant="ghost"
                   className={clsx(
-                    "p-4 rounded-md transition-all duration-300 flex flex-col space-y-4 overflow-hidden bg-gradient-to-b from-gray-800 via-black to-gray-900 border-2",
-                    led.status === "ON" ? "border-purple-500" : "border-gray-700",
-                    isRecording && "opacity-50 cursor-not-allowed"
+                    "p-2 transition-all text-lg active:scale-75 ",
+                    led.status === "ON"
+                      ? "text-violet-700 hover:text-purple-600"
+                      : "text-gray-700 hover:text-violet-400 hover:bg-violet-900"
                   )}
                 >
-                  {/* LED Header with Toggle Button */}
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-2xl font-bold text-white">LED {led.id}</h3>
-                    <Button
-                      onClick={() => handleLEDToggle(led.id)}
-                      disabled={!isConnected || isRecording}
-                      variant="ghost"
-                      className={clsx(
-                        "p-2 transition-all text-lg",
-                        led.status === "ON" ? "text-purple-500 hover:text-purple-600" : "text-gray-500 hover:text-gray-400"
-                      )}
-                      aria-label={`Toggle LED ${led.id}`}
-                    >
-                      {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
-                    </Button>
-                  </div>
+                  {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
+                </Button>
+              </CustomTooltip>
+            </div>
+  {/* LED Icon and Status/Intensity Display */}
+  <div className="flex flex-col items-center text-xl sm:text-2xl w-full h-full">
+  <LEDIcon intensity={led.intensity} status={led.status} />
 
-                  {/* LED Icon Display */}
-                  <div className="flex justify-center text-2xl w-full h-full animate-blink">
-                    <LEDIcon intensity={led.intensity} />
-                    <div className="flex items-center space-x-2">
-                      <span className={`text-[#7221bd] text-lg font-extrabold`}>
-                        {led.status}
-                      </span>
-                    </div>
-                  </div>
+ {/* Texto do Status (ON/OFF) */}
+ <span
+    style={{
+      color: led.status === "ON"
+        ? `hsl(270, 100%, ${90 - (led.intensity / 100) * 50}%)` // Cor dinâmica
+        : "rgba(75, 75, 75, 1)", // Cinza escuro para OFF
+      textShadow: led.status === "ON"
+        ? `0 0 ${Math.max(1, led.intensity / 5)}px rgba(128, 0, 255, ${
+            0.1 + (led.intensity / 100) * 0.9
+          })` // Efeito de brilho
+        : "none",
+    }}
+    className="text-base sm:text-lg font-extrabold"
+  >
+    {led.status}
+  </span>
 
-                  {/* Intensity Slider and Input */}
-                  <div className="flex items-center space-x-4">
-                    <CustomTooltip content="Adjust Intensity (%)" placement="top">
-                      <CustomSlider
-                        value={tempIntensity}
-                        onChange={setTempIntensity}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        disabled={!isConnected || led.status === "OFF" || isRecording}
-                      />
-                    </CustomTooltip>
-                    <CustomTooltip content="Set Intensity (%)" placement="top">
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          value={tempIntensity}
-                          onChange={(e) =>
-                            setTempIntensity(
-                              Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
-                            )
-                          }
-                          className="w-20 text-sm bg-gray-700 text-white rounded-md appearance-none"
-                          min={0}
-                          max={100}
-                          step={0.1}
-                          disabled={!isConnected || led.status === "OFF" || isRecording}
-                          style={{ MozAppearance: "textfield" }}
-                          onWheel={(e) => e.currentTarget.blur()}
-                        />
-                        <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">%</span>
-                      </div>
-                    </CustomTooltip>
-                  </div>
+  {/* Texto da Intensidade */}
+  <div
+    style={{
+      color: led.status === "ON"
+        ? `hsl(270, 100%, ${90 - (led.intensity / 100) * 50}%)`
+        : "rgba(75, 75, 75, 1)",
+      textShadow: led.status === "ON"
+        ? `0 0 ${Math.max(1, led.intensity / 5)}px rgba(128, 0, 255, ${
+            0.1 + (led.intensity / 100) * 0.9
+          })`
+        : "none",
+    }}
+    className="text-base sm:text-lg font-mono w-[3ch] text-center"
+  >
+    {led.intensity}%
+  </div>
+</div>
 
-                  {/* Update LED Button */}
-                  <Button
-                    onClick={() => handleLEDIntensityChange(led.id, tempIntensity)}
-                    className="px-3 py-2 bg-[#7221bd] hover:bg-[#451f68] text-white rounded-md"
-                    disabled={!isConnected || led.status === "OFF" || isRecording}
-                  >
-                    Update
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+
+{/* Intensity Slider and Input */}
+<div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4">
+  <CustomTooltip content="Adjust Intensity (%)" placement="top">
+    <CustomSlider
+      value={tempLEDValues[led.id] ?? led.intensity}
+      onChange={(value: number) =>
+        setTempLEDValues((prev) => ({
+          ...prev,
+          [led.id]: value,
+        }))
+      }
+      min={0}
+      max={100}
+      step={1}
+      disabled={!isConnected || isProductionMode}
+      className="w-full sm:w-[80%]"
+    />
+  </CustomTooltip>
+  <CustomTooltip content="Adjust Intensity (%)" placement="top">
+    <div className="flex items-center space-x-2 w-full sm:w-1/3">
+      <Input
+        type="number"
+        value={tempLEDValues[led.id] ?? led.intensity}
+        onChange={(e) =>
+          setTempLEDValues((prev) => ({
+            ...prev,
+            [led.id]: Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)),
+          }))
+        }
+        className="w-full text-sm bg-gray-700 text-white rounded-md appearance-none"
+        min={0}
+        max={100}
+        step={1}
+        disabled={!isConnected || isProductionMode}
+      />
+      <span className="text-gray-400">%</span>
     </div>
-  );
+  </CustomTooltip>
+</div>
+
+{/* Update Button */}
+<Button
+  onClick={() => {
+    handleLEDSetIntensity(led.id, tempLEDValues[led.id] ?? led.intensity);
+    setTempLEDValues((prev) => ({
+      ...prev,
+      [led.id]: tempLEDValues[led.id],
+    }));
+  }}
+  disabled={!isConnected || isProductionMode}
+  className={clsx(
+    "px-3 py-2 rounded-md transition-all mt-2 sm:mt-0",
+    led.status === "ON"
+      ? "bg-[#7221bd] hover:bg-[#451f68] text-white" // Cor vibrante para ON
+      : "bg-gray-500 hover:bg-gray-600 text-gray-300 opacity-75 active:scale-75 transition-all" // Cinza escuro para OFF
+  )}
+>
+  Update
+</Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </div>
+ 
+    )
 };
 
 export default LEDCard;

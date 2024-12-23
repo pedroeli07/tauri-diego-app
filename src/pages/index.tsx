@@ -1,18 +1,16 @@
 // src/pages/index.tsx
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, Component } from "react";
 import { ToastProvider, toast } from "@/components/Toast";
 import {
   handleGetPorts,
   getBaudList,
   handleConnect,
-  handleProductionMode,
-  handleReset,
-  setupSerialListeners,
-  handleDisconnect
+  handleDisconnect,
+  parseBinaryResponse
 } from "@/utils/serial";
-import { handleLEDCommand, handleMotorCommand } from "@/utils/commands";
+import { formatCommand, handleMotorCommand, sendFormattedCommand } from "@/utils/commands";
 import {
   Select,
   SelectContent,
@@ -27,14 +25,8 @@ import {
   RouteOff,
   Settings,
   Video,
-  Copy,
-  Trash2,
-  Download,
-  X,
   RefreshCcw,
   RefreshCw,
-  Minus,
-  Maximize,
   PowerOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -42,48 +34,219 @@ import CustomTooltip from "@/components/CustomTooltip";
 import {
   LED,
   Motor,
-  LightBarrier,
   Log,
-  Status,
+  LightBarrierStatus,
+  LightBarriers,
 } from "@/lib/types";
 import {
-  getLogColor,
   copyLogs,
   initialMotors,
   initialLightBarriers,
   utilAddLog,
-  utilDeleteLog,
+  clearLogs as utilClearLogs,
   initialLeds,
-  deleteLog,
-  clearLogs,
 } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { invoke } from "@tauri-apps/api/tauri";
-import { Input } from "@/components/ui/input";
-import CustomSlider from "@/components/ui/custom-slider";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import clsx from "clsx"; // Utility for conditional classNames
-import MotorIcon from "@/components/MotorIcon";
-import LightBarrierIcon from "@/components/LightBarrierIcon";
-import Image from "next/image";
-import * as XLSX from "xlsx"; // For Excel export
-import LEDIcon from "@/components/LEDIcon";
-import { useAppWindow, closeApp, minimizeApp, maximizeApp, handleSend } from "@/utils/window";
-import DebugBox from '@/components/DebugBox';
 
-// Interface defining the structure of Light Barriers
-export interface LightBarriers {
-  id: number;
-  status: Status; // Replace string literals with the Status enum
-  lastChanged: string;
-}
+import DebugBox from '@/components/DebugBox';
+import { handleMotorToggleHandler, handleMotorUpdateHandler } from "@/utils/handlers";
+import Header from '../components/Header';
+import LEDCard from "@/components/LEDCard";
+import { appWindow as TauriAppWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
+import MotorCard from "@/components/MotorCard";
+import { TempMotor } from "@/lib/types"; // Certifique-se de importar TempMotor
+import { send } from "process";
+import { handleLEDToggle, handleLEDIntensityChange } from "@/utils/handlers";
+import { handleLEDToggleHandler, handleLEDSetIntensityHandler } from "@/utils/handlers";
+import LoadingOverlay from "@/components/LoadingOverlay";
+import LightBarrierCard from "@/components/LightBarrierCard";
+import { saveAs } from 'file-saver';
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+
+/**
+ * Exporta logs no formato PDF de forma simplificada.
+ * @param logs - Array de logs a serem exportados.
+ */
+export const exportLogsAsPDF = (logs: { message: string; type: string }[]) => {
+  try {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    // Adicionar título
+    doc.setFontSize(16);
+    doc.text("Relatório de Logs", 40, 40);
+
+    // Criar tabela manualmente
+    const startX = 40;
+    const startY = 80;
+    const rowHeight = 20;
+
+    // Adicionar cabeçalho
+    doc.setFontSize(12);
+    doc.text("Tipo", startX, startY);
+    doc.text("Mensagem", startX + 100, startY);
+
+    // Adicionar linhas
+    let currentY = startY + rowHeight;
+    logs.forEach((log) => {
+      doc.text(log.type, startX, currentY);
+      doc.text(log.message, startX + 100, currentY);
+      currentY += rowHeight;
+    });
+
+    // Salvar o PDF
+    doc.save("logs.pdf");
+  } catch (error) {
+    console.error("Erro ao gerar PDF:", error);
+  }
+};
+
+
+/**
+ * Converte uma URL de imagem em uma string Base64.
+ * @param url A URL da imagem.
+ * @returns Uma promessa que resolve para uma string Base64.
+ */
+const getBase64FromUrl = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const dataUrl = reader.result as string;
+      resolve(dataUrl);
+    };
+    reader.onerror = () => {
+      reject(new Error('Falha ao converter a imagem em Base64.'));
+    };
+    reader.readAsDataURL(blob);
+  });
+};
+
+/**
+ * Exporta logs no formato especificado (CSV, PDF, Excel).
+ * @param logs - Array de logs a serem exportados.
+ * @param format - O formato para exportar os logs ("csv" | "pdf" | "excel").
+ */
+/**
+ * Exporta logs no formato especificado (CSV, PDF, Excel).
+ * @param logs - Array de logs a serem exportados.
+ * @param format - O formato para exportar os logs ("csv" | "pdf" | "excel").
+ */
+export const handleExportLogs = async (
+  logs: { message: string; type: string }[],
+  format: "csv" | "pdf" | "excel"
+) => {
+  if (format === "csv") {
+    // Criar conteúdo CSV
+    const csvContent = logs.map(log => `${log.type},${log.message}`).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, "logs.csv");
+  } else if (format === "pdf") {
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    // Adicionar título
+    doc.setFontSize(16);
+    doc.text("Relatório de Logs", 40, 40);
+
+    // Criar tabela manualmente
+    const startX = 40;
+    const startY = 80;
+    const rowHeight = 20;
+
+    // Adicionar cabeçalho
+    doc.setFontSize(12);
+    doc.text("Tipo", startX, startY);
+    doc.text("Mensagem", startX + 100, startY);
+
+    // Adicionar linhas
+    let currentY = startY + rowHeight;
+    logs.forEach((log) => {
+      doc.text(log.type, startX, currentY);
+      doc.text(log.message, startX + 100, currentY);
+      currentY += rowHeight;
+    });
+
+    // Salvar o PDF
+    doc.save("logs.pdf");
+  } else if (format === "excel") {
+    const worksheet = XLSX.utils.json_to_sheet(logs);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Logs");
+    const wbout = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([wbout], { type: "application/octet-stream" });
+    saveAs(blob, "logs.xlsx");
+  }
+};
+
+// Import Tauri's appWindow only on the client side
+export const useAppWindow = () => {''
+  const [appWindowInstance, setAppWindowInstance] = useState<any>(null);
+
+  useEffect(() => {
+    const loadAppWindow = async () => {
+      if (typeof window !== "undefined") {
+        const { appWindow } = await import("@tauri-apps/api/window");
+        setAppWindowInstance(appWindow);
+      }
+    };
+    loadAppWindow();
+  }, []);
+
+  return appWindowInstance;
+};
+
+/**
+ * Fecha a aplicação.
+ */
+export const closeApp = async (appWindow: typeof TauriAppWindow | null) => {
+  if (appWindow) {
+    try {
+      await appWindow.close();
+    } catch (error) {
+      console.error("Erro ao fechar a janela:", error);
+    }
+  }
+};
+
+/**
+ * Minimiza a aplicação.
+ */
+export const minimizeApp = async (appWindow: typeof TauriAppWindow | null) => {
+  if (appWindow) {
+    try {
+      await appWindow.minimize();
+    } catch (error) {
+      console.error("Erro ao minimizar a janela:", error);
+    }
+  }
+};
+
+/**
+ * Maximiza/restaura a aplicação.
+ */
+export const maximizeApp = async (appWindow: typeof TauriAppWindow | null) => {
+  if (appWindow) {
+    try {
+      await appWindow.toggleMaximize();
+    } catch (error) {
+      console.error("Erro ao maximizar a janela:", error);
+    }
+  }
+};
+
+
+
 
 /**
  * HomePageProps Interface
@@ -97,43 +260,182 @@ interface HomePageProps {}
  */
 const Home: React.FC<HomePageProps> = () => {
   // Temporary States for storing temporary values before updating
-  const [tempMotorValues, setTempMotorValues] = useState<Record<number, { speed: number; direction: string }>>({});
+  const [tempMotorValues, setTempMotorValues] = useState<
+  Record<number, { speed: number; direction: "CW" | "CCW" }>
+>({});
+
   const [tempLEDValues, setTempLEDValues] = useState<Record<number, number>>({});
   const revertTimeouts = useRef<Record<number, NodeJS.Timeout>>({});
 
   // Serial Connection States
   const [baud, setBaud] = useState<string>("9600"); // Current baud rate
   const [port, setPort] = useState<string>("None"); // Currently selected serial port
-  const [portList, setPortList] = useState<string[]>(["None"]); // List of available serial ports
+  const [portList, setPortList] = useState<string[]>(["None"]);
+
   const [isUpdatingPorts, setIsUpdatingPorts] = useState<boolean>(false); // Indicates if ports are being updated
   const [isConnected, setIsConnected] = useState<boolean>(false); // Connection status
 
   // Device States
+  
   const [logs, setLogs] = useState<Log[]>([]); // Array of log entries
   const [motors, setMotors] = useState<Motor[]>(initialMotors); // Array of motors
   const [lightBarriers, setLightBarriers] = useState<LightBarriers[]>(initialLightBarriers); // Array of light barriers
   const [leds, setLeds] = useState<LED[]>(initialLeds); // Array of LEDs
-  const [tempIntensity, setTempIntensity] = useState<number>(leds[0].intensity); // Temporary intensity value for LEDs
+
+ // const [lightBarriers, setLightBarriers] = useState(initialLightBarriers);
+
+
+  const [isProductionActive, setIsProductionActive] = useState<boolean>(false);
+
+  const [isCloseModalOpen, setIsCloseModalOpen] = React.useState(false);
+
+const [tempIntensities, setTempIntensities] = useState<number[]>(() =>
+  leds.map(() => 0) // Inicializa todas as intensidades com 0
+);
+
+const [isConnecting, setIsConnecting] = useState<boolean>(false); // Estado para carregamento
+
+
+  //const [tempIntensity, setTempIntensity] = useState<number>(0);
+
+  useEffect(() => {
+    const unlisten = listen<SerialPayload>('updateSerial', (event) => {
+      const data = event.payload.data;
+  
+      // Log para verificar o payload recebido
+      handleAddLog(`Received by serial (binary): [${data.join(', ')}]`, "info");
+  
+      // Processa os dados recebidos
+      parseBinaryResponse(
+        data,
+        updateLEDStatus,        // Atualiza LEDs
+        updateMotorStatus,      // Atualiza motores
+        updateLightBarrierStatus, // Atualiza barreiras de luz
+        handleAddLog            // Adiciona logs
+      );
+    });
+  
+    handleAddLog("Serial event listeners set up successfully (binary).", "success");
+  
+    return () => {
+      unlisten.then((f) => f()).catch((err) => console.error(err));
+    };
+  }, [leds, motors, lightBarriers]);
+  
+
+
+// Atualiza o status do LED no estado
+const updateLEDStatusFunction = (
+  id: number,
+  status: "ON" | "OFF",
+  intensity?: number
+) => {
+  setLeds(prevLeds =>
+    prevLeds.map(led =>
+      led.id === id
+        ? {
+            ...led,
+            status,
+            intensity: intensity !== undefined ? intensity : led.intensity,
+          }
+        : led
+    )
+  );
+  handleAddLog(
+    `LED ${id} updated to ${status}${
+      intensity !== undefined ? ` with intensity ${intensity}%` : ""
+    }`,
+    "info"
+  );
+};
+
+
+// Atualiza o status do LED no estado
+const updateMotorStatusFunction = (
+  id: number,
+  status: "ON" | "OFF",
+  speed?: number,
+  direction?: "CW" | "CCW"
+) => {
+  setMotors(prevMotors =>
+    prevMotors.map(motor =>
+      motor.id === id
+        ? {
+            ...motor,
+            status,
+            speed: speed !== undefined ? speed : motor.speed,
+            direction: direction !== undefined ? direction : motor.direction,
+          }
+        : motor
+    )
+  );
+
+  handleAddLog(
+    `Motor ${id} updated to ${status}${
+      speed !== undefined ? ` with speed ${speed}Hz` : ""
+    }${direction !== undefined ? ` and direction ${direction}` : ""}`,
+    "info"
+  );
+};
+
+
+
+  /*
+  const handleLEDToggle = async (id: number) => {
+    const led = leds.find((l) => l.id === id);
+    if (!led) return;
+  
+    const newStatus = led.status === "ON" ? "OFF" : "ON";
+    const newIntensity = newStatus === "ON" ? 100 : 0;
+  
+    handleAddLog(`Toggling LED ${id} to ${newStatus}...`, "info");
+  
+    const success = await handleLEDCommand(id, newStatus, newIntensity, handleAddLog);
+    if (success) {
+      updateLEDStatus(id, newStatus, newIntensity);
+      handleAddLog(`LED ${id} toggled to ${newStatus}.`, "success");
+    } else {
+      handleAddLog(`Failed to toggle LED ${id} to ${newStatus}.`, "error");
+    }
+  };
+  
+  const handleLEDIntensityChange = async (id: number, intensity: number) => {
+    const led = leds.find((l) => l.id === id);
+    if (!led) return;
+  
+    handleAddLog(`Changing intensity of LED ${id} to ${intensity}%...`, "info");
+  
+    const success = await handleLEDCommand(id, "ON", intensity, handleAddLog);
+    if (success) {
+      updateLEDStatus(id, "ON", intensity);
+      handleAddLog(`LED ${id} intensity set to ${intensity}%.`, "success");
+    } else {
+      handleAddLog(`Failed to set intensity of LED ${id} to ${intensity}%.`, "error");
+    }
+  };
+*/
 
   // Recording State
   const [isRecording, setIsRecording] = useState<boolean>(false); // Indicates if recording is active
-
-  // Export Modal State
-  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false); // Controls the export modal visibility
-
-  // Reference for external modules (e.g., jsPDF, file-saver)
-  const exportRef = useRef<{ jsPDF?: any; saveAs?: any }>({});
-
-
+  const [isProductionMode, setIsProductionMode] = useState<boolean>(false);
+  
+  // Command Input State
+  const [command, setCommand] = useState<string>(""); // Current command input
 
   // Reference to the application window for window controls
   const appWindow = useAppWindow();
 
+  // Exemplo de uso
+  const exportLogs = async (format: "csv" | "pdf" | "excel"): Promise<void> => {
+    await handleExportLogs(logs, format);
+  };
+  
   /**
    * Toggles the recording state between active and inactive.
    */
   const toggleRecording = () => setIsRecording((prev) => !prev);
 
+  
 
 
   /**
@@ -145,8 +447,6 @@ const Home: React.FC<HomePageProps> = () => {
     (
       message: string,
       type: "error" | "success" | "info" | "warning" = "info",
-      color?: string
-    
     ) => {
       setLogs((prevLogs) => utilAddLog(prevLogs, message, type));
     },
@@ -154,43 +454,73 @@ const Home: React.FC<HomePageProps> = () => {
   );
 
 
+  useEffect(() => {
+    // Listen for the "backendLog" event emitted by your Rust backend
+    const unlisten = listen<any>("backendLog", (event) => {
+      // event.payload should match the JSON you sent in `backend_log`
+      // e.g. { message: "[INFO] Something happened...", type: "info" }
+      const { message, type } = event.payload;
+  
+      // Pass that message to your existing logging function
+      // `type` can be "info", "error", "warning", or "success"
+      // If your type doesn't match exactly, handle or map it accordingly
+      handleAddLog(message, type ?? "info");
+    });
+  
+    return () => {
+      // Cleanup the listener on unmount
+      unlisten.then((fn) => fn()).catch(console.error);
+    };
+  }, [handleAddLog]);
+
   /**
    * Fetches the available serial ports and updates the state.
    */
   const fetchPorts = async () => {
     setIsUpdatingPorts(true);
-    handleAddLog("Starting port update...", "info");
-
+    handleAddLog("Searching ports...", "info"); // Log inicial
+  
     try {
-      await handleGetPorts(setPortList); // Fetch available ports
+      await handleGetPorts(setPortList); // Passa `setPortList` como argumento
       handleAddLog("Ports updated successfully.", "success");
-    } catch (error) {
-      handleAddLog(`Error updating ports: ${error}`, "error");
+    } catch (error: any) {
+      handleAddLog(`Error while searching for ports: ${error.message}`, "error");
     } finally {
       setIsUpdatingPorts(false);
     }
   };
+  
 
   /**
    * Toggles the serial connection between connected and disconnected states.
    */
   const toggleConnection = async () => {
-    handleAddLog(`Attempting to ${isConnected ? "disconnect" : "connect"}...`, "info");
-
+    let showLoaderTimeout: NodeJS.Timeout;
+    const loaderDelay = 500; // Tempo para mostrar o overlay (500ms)
+  
     if (!isConnected) {
-      // Connect to serial port
+      handleAddLog("Attempting to connect...", "info");
+  
+      // Configure um timeout para exibir o overlay apenas se a conexão demorar
+      showLoaderTimeout = setTimeout(() => {
+        setIsConnecting(true);
+      }, loaderDelay);
+  
       try {
-        const connected = await handleConnect(port, baud, "\n", setIsConnected);
+        const connected = await handleConnect(port, baud, setIsConnected);
+  
         if (connected) {
           handleAddLog(`Connected to port ${port} at ${baud} baud.`, "success");
         } else {
-          handleAddLog(`Failed to connect to port ${port}.`, "error");
+          handleAddLog("Failed to connect to the port.", "error");
         }
-      } catch (error) {
-        handleAddLog(`Error connecting: ${error}`, "error");
+      } catch (error:any) {
+        handleAddLog(`Error connecting: ${error.message}`, "error");
+      } finally {
+        clearTimeout(showLoaderTimeout); // Cancela o timeout se a conexão for rápida
+        setIsConnecting(false); // Certifica-se de ocultar o overlay
       }
     } else {
-      // Disconnect from serial port
       try {
         const disconnected = await handleDisconnect(setIsConnected);
         if (disconnected) {
@@ -198,78 +528,91 @@ const Home: React.FC<HomePageProps> = () => {
         } else {
           handleAddLog("No active connection to disconnect.", "warning");
         }
-      } catch (error) {
-        handleAddLog(`Error disconnecting: ${error}`, "error");
+      } catch (error:any) {
+        handleAddLog(`Error disconnecting: ${error.message}`, "error");
       }
     }
   };
 
-  /**
-   * Activates production mode by sending the appropriate command.
-   */
-  const sendProductionMode = async () => {
-    try {
-      await handleProductionMode(); // Activate production mode
+/**
+ * Ativa o modo de produção.
+ */
+const sendProductionMode = async () => {
+  try {
+    const command = formatCommand(0x02, 0x00, 1); // Command for Production Mode
+    const success = await sendFormattedCommand(command, handleAddLog);
+
+    if (success) {
+      setIsProductionMode(true); // Ativar modo de produção
       handleAddLog("Production mode activated.", "success");
       toast.success("Production mode activated.");
-    } catch (error) {
-      handleAddLog(`Error activating production mode: ${error}`, "error");
+    } else {
+      handleAddLog("Failed to activate production mode.", "error");
       toast.error("Failed to activate production mode.");
     }
-  };
+  } catch (error) {
+    handleAddLog(`Error activating production mode: ${error}`, "error");
+    toast.error("Failed to activate production mode.");
+  }
+};
 
-  /**
-   * Sends a reset command to the device.
-   */
-  const sendReset = async () => {
-    try {
-      await handleReset(); // Send reset command
+const disableProductionMode = async () => {
+  try {
+    const command = formatCommand(0x02, 0x00, 0); // Comando para desativar Production Mode
+    const success = await sendFormattedCommand(command, handleAddLog);
+
+    if (success) {
+      setIsProductionMode(false); // Desativa o estado de produção
+      handleAddLog("Production mode deactivated.", "success");
+      toast.success("Production mode deactivated.");
+    } else {
+      handleAddLog("Failed to deactivate production mode.", "error");
+      toast.error("Failed to deactivate production mode.");
+    }
+  } catch (error) {
+    handleAddLog(`Error deactivating production mode: ${error}`, "error");
+    toast.error("Failed to deactivate production mode.");
+  }
+};
+
+/**
+ * Envia o comando de reset.
+ */
+/**
+ * Envia o comando de reset e redefine os estados no frontend.
+ */
+const sendReset = async () => {
+  try {
+    // Comando de reset
+    const command = formatCommand(0x01, 0x00, 0); // Command for Reset
+    const success = await sendFormattedCommand(command, handleAddLog);
+
+    if (success) {
       handleAddLog("Reset command sent.", "success");
       toast.success("Reset command sent.");
-    } catch (error) {
-      handleAddLog(`Error sending reset command: ${error}`, "error");
+
+      // Desativa o modo de produção, se estiver ativo
+      if (isProductionMode) {
+        disableProductionMode();
+        handleAddLog("Production mode deactivated.", "info");
+        toast.info("Production mode deactivated.");
+      }
+
+      // Reset frontend states
+      setLeds(initialLeds); // Redefine LEDs ao estado inicial
+      setMotors(initialMotors); // Redefine motores ao estado inicial
+      setLightBarriers(initialLightBarriers); // Redefine Light Barriers ao estado inicial
+    } else {
+      handleAddLog("Failed to send reset command.", "error");
       toast.error("Failed to send reset command.");
     }
-  };
+  } catch (error) {
+    handleAddLog(`Error sending reset command: ${error}`, "error");
+    toast.error("Failed to send reset command.");
+  }
+};
 
-  /**
-   * Exports logs in the specified format (CSV, PDF, Excel).
-   * @param format - The format to export logs ("csv" | "pdf" | "excel").
-   */
-  const handleExportLogs = async (format: "csv" | "pdf" | "excel") => {
-    let jsPDF: any, saveAs: any;
 
-    // Dynamically import jsPDF and file-saver for exporting
-    const modules = await Promise.all([
-      import("jspdf"),
-      import("file-saver"),
-    ]);
-
-    jsPDF = modules[0].default;
-    saveAs = modules[1].default;
-
-    // Combine all log messages into a single string
-    const allLogs = logs.map((log) => log.message).join("\n");
-
-    if (format === "csv") {
-      // Create a CSV blob and trigger download
-      const blob = new Blob([allLogs], { type: "text/csv;charset=utf-8;" });
-      saveAs(blob, "logs.csv");
-    } else if (format === "pdf") {
-      // Create a PDF document and trigger download
-      const doc = new jsPDF();
-      doc.text(allLogs, 10, 10);
-      doc.save("logs.pdf");
-    } else if (format === "excel") {
-      // Create an Excel workbook and trigger download
-      const worksheet = XLSX.utils.aoa_to_sheet(logs.map((log) => [log.message]));
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Logs");
-      const wbout = XLSX.write(workbook, { type: "array", bookType: "xlsx" });
-      const blob = new Blob([wbout], { type: "application/octet-stream" });
-      saveAs(blob, "logs.xlsx");
-    }
-  };
 
   /**
    * Updates the status and intensity of a specific LED.
@@ -277,166 +620,173 @@ const Home: React.FC<HomePageProps> = () => {
    * @param status - The new status ("ON" | "OFF").
    * @param intensity - The new intensity value (optional).
    */
-  const updateLEDStatus = (id: number, status: "ON" | "OFF", intensity?: number) => {
-    setLeds((prevLeds) =>
-      prevLeds.map((led) =>
-        led.id === id
-          ? {
-              ...led,
-              status,
-              intensity: intensity !== undefined ? intensity : led.intensity,
-              lastChanged: new Date().toLocaleTimeString(),
-            }
-          : led
-      )
-    );
-    handleAddLog(
-      `LED ${id} updated to ${status}${intensity !== undefined ? ` with intensity ${intensity}%` : ""}`,
-      "info"
-    );
-  };
+// Update LED status in state
+const updateLEDStatus = (id: number, status: "ON" | "OFF", intensity?: number) => {
+  setLeds(prevLeds =>
+    prevLeds.map(led =>
+      led.id === id
+        ? {
+            ...led,
+            status,
+            intensity: intensity !== undefined ? intensity : led.intensity,
+            // Add any additional fields if necessary
+          }
+        : led
+    )
+  );
+  handleAddLog(
+    `LED ${id} updated to ${status}${intensity !== undefined ? ` with intensity ${intensity}%` : ""}`,
+    "info"
+  );
 
-  /**
-   * Updates the status, speed, and direction of a specific Motor.
-   * @param id - The ID of the Motor.
-   * @param status - The new status ("ON" | "OFF").
-   * @param speed - The new speed value (optional).
-   * @param direction - The new direction ("CW" | "CCW") (optional).
-   */
-  const updateMotorStatus = (
-    id: number,
-    status: "ON" | "OFF",
-    speed?: number,
-    direction?: "CW" | "CCW"
-  ) => {
-    setMotors((prevMotors) =>
-      prevMotors.map((motor) =>
-        motor.id === id
-          ? {
-              ...motor,
-              status,
-              speed: speed !== undefined ? speed : motor.speed,
-              direction: direction !== undefined ? direction : motor.direction,
-              lastChanged: new Date().toLocaleTimeString(),
-            }
-          : motor
-      )
-    );
-    handleAddLog(
-      `Motor ${id} updated to ${status}${speed !== undefined ? ` with speed ${speed} Hz` : ""}${
-        direction !== undefined ? ` and direction ${direction}` : ""
-      }`,
-      "info"
-    );
-  };
+};
 
-  /**
-   * Updates the status of a specific Light Barrier.
-   * @param id - The ID of the Light Barrier.
-   * @param status - The new status ("OK" | "ERROR").
-   */
-  const updateLightBarrierStatus = (id: number, status: "OK" | "ERROR") => {
-    setLightBarriers((prevLightBarriers) =>
-      prevLightBarriers.map((lb) =>
-        lb.id === id
-          ? {
-              ...lb,
-              status: status as Status, // Explicitly cast to the Status enum
-              lastChanged: new Date().toLocaleTimeString(),
-            }
-          : lb
-      )
-    );
-    handleAddLog(`Light Barrier ${id} status: ${status}`, "info");
-  };
+const updateLightBarrierStatus = (id: number, status: LightBarrierStatus) => {
+  setLightBarriers((prevLightBarriers) =>
+    prevLightBarriers.map((lightBarrier) =>
+      lightBarrier.id === id
+        ? {
+            ...lightBarrier,
+            status, // Atualiza o status com o enum
+            lastChanged: new Date().toLocaleTimeString(), // Atualiza o timestamp de última mudança
+          }
+        : lightBarrier // Mantém as outras barreiras inalteradas
+    )
+  );
+
+  // Gera mensagem de log detalhada
+  const logMessage = `Light Barrier ${id} updated to ${status}.`;
+  handleAddLog(logMessage, "info");
+};
+
+
+
+ /**
+ * Atualiza o status, velocidade e direção de um motor específico.
+ * @param id - O ID do motor.
+ * @param status - O novo status ("ON" | "OFF").
+ * @param speed - O novo valor de velocidade (opcional).
+ * @param direction - A nova direção ("CW" | "CCW") (opcional).
+ */
+const updateMotorStatus = (
+  id: number,
+  status: "ON" | "OFF",
+  speed?: number,
+  direction?: "CW" | "CCW"
+) => {
+  setMotors((prevMotors) =>
+    prevMotors.map((motor) =>
+      motor.id === id
+        ? {
+            ...motor,
+            status,
+            speed: speed !== undefined ? speed : motor.speed,
+            direction: direction !== undefined ? direction : motor.direction,
+            lastChanged: new Date().toLocaleTimeString(), // Atualiza o timestamp de última mudança
+          }
+        : motor
+    )
+  );
+
+  // Gera mensagem de log detalhada
+  const logMessage = `Motor ${id} updated to ${status}${
+    speed !== undefined ? ` with speed ${speed} Hz` : ""
+  }${direction !== undefined ? ` and direction ${direction}` : ""}.`;
+
+  handleAddLog(logMessage, "info");
+};
+
+
+  
+  interface SerialPayload {
+    data: number[];
+  }
+
+
+
 
   /**
    * Sets up listeners for serial events to handle updates from the backend.
    */
   useEffect(() => {
-    setupSerialListeners(
-      updateLEDStatus,
-      updateMotorStatus,
-      updateLightBarrierStatus,
-      (msg, type) => handleAddLog(msg, type)
-    );
+    try {
+      listen<SerialPayload>('updateSerial', (event) => {
+        const data = event.payload.data;
+        handleAddLog(`Received by serial (binary): [${data.join(', ')}]`, "info");
+        parseBinaryResponse(data, updateLEDStatus, updateMotorStatus, updateLightBarrierStatus, handleAddLog);
+      });
+      handleAddLog("Serial event listeners set up successfully (binary).", "success");
+    } catch (error: any) {
+      handleAddLog(`Error setting up serial event listeners: ${error.message}`, "error");
+    }
   }, []);
+
+  
 
   /**
    * Initializes the component with a success log entry.
    */
   useEffect(() => {
-    handleAddLog("Device initialized.", "success");
+    handleAddLog("Initializing device...", "info"); // Log de inicialização
+  
+    fetchPorts()
+      .then(() => handleAddLog("Ports fetched successfully.", "success"))
+      .catch((error: any) =>
+        handleAddLog(`Error fetching ports during initialization: ${error.message}`, "error")
+      );
+  
+    handleAddLog("Device initialized.", "success"); // Log de sucesso após inicialização
   }, []);
 
-  /**
-   * Configuration for the main control buttons.
-   */
-  const controlButtons = [
-    {
-      icon: <Settings size={20} />,
-      label: "Production",
-      onClick: sendProductionMode,
-      disabled: false,
-      tooltip: "Activate Production Mode",
-      variant: "default", // Button variant styling
-    },
-    {
-      icon: <RouteOff size={20} />,
-      label: "Reset",
-      onClick: sendReset,
-      disabled: false,
-      tooltip: "Send Reset Command",
-      variant: "destructive", // Button variant styling
-    },
-    {
-      icon: <Video size={20} />,
-      label: isRecording ? "Stop" : "Record",
-      onClick: toggleRecording,
-      disabled: false,
-      tooltip: isRecording ? "Stop Recording" : "Start Recording",
-      variant: "success", // Button variant styling
-    },
-  ];
 
-  /**
-   * Configuration for the serial connection buttons.
-   */
-  const serialButtons = [
-    {
-      icon: isConnected ? <Plug2 size={20} /> : <Power size={20} />,
-      label: isConnected ? "Disconnect" : "Connect",
-      onClick: toggleConnection,
-      disabled: port === "None" || isUpdatingPorts,
-      tooltip: isConnected ? "Disconnect" : "Connect",
-      variant: isConnected ? "destructive" : "success",
-    },
-  ];
-
-  /**
-   * Renders a list of buttons based on the provided configuration.
-   * @param buttons - Array of button configurations.
-   * @returns Array of rendered Button components.
-   */
-  const renderButtons = (buttons: typeof controlButtons) => {
-    return buttons.map((button, index) => (
-      <CustomTooltip key={index} content={button.tooltip} placement="top">
-        <Button
-          onClick={button.onClick}
-          disabled={button.disabled}
-          className={clsx(
-            "flex items-center space-x-2 px-4 py-2 rounded-md",
-            button.variant === "success" && "bg-gray-600 hover:bg-green-700 text-white",
-            button.variant === "destructive" && "bg-gray-600 hover:bg-red-700 text-white",
-            button.variant !== "success" && button.variant !== "destructive" && "bg-gray-700 hover:bg-gray-600 text-gray-300"
-          )}
-        >
-          {button.icon}
-          <span>{button.label}</span>
-        </Button>
-      </CustomTooltip>
-    ));
+  const selectFolder = async () => {
+    try {
+      const folder = await invoke("set_folder_path");
+      handleAddLog(`Folder selected: ${folder}`, "success");
+      return folder;
+    } catch (error) {
+      handleAddLog("Failed to select folder.", "error");
+      return null;
+    }
   };
+
+  const startRecording = async () => {
+    const folder = await selectFolder();
+    if (!folder) return;
+  
+    try {
+      const success = await invoke("handle_start_record");
+      if (success) {
+        setIsRecording(true);
+        handleAddLog("Recording started.", "success");
+        toast.success("Recording started.");
+      } else {
+        handleAddLog("Failed to start recording.", "error");
+        toast.error("Failed to start recording.");
+      }
+    } catch (error) {
+      handleAddLog("Error starting recording.", "error");
+      toast.error("Error starting recording.");
+    }
+  };
+  
+  const stopRecording = async () => {
+    try {
+      const success = await invoke("handle_start_record");
+      if (success) {
+        setIsRecording(false);
+        handleAddLog("Recording stopped.", "success");
+        toast.success("Recording stopped.");
+      } else {
+        handleAddLog("Failed to stop recording.", "error");
+        toast.error("Failed to stop recording.");
+      }
+    } catch (error) {
+      handleAddLog("Error stopping recording.", "error");
+      toast.error("Error stopping recording.");
+    }
+  };
+
 
   /**
    * Configuration for the Select dropdowns.
@@ -458,648 +808,210 @@ const Home: React.FC<HomePageProps> = () => {
     },
   ];
 
-  /**
-   * Renders a list of Select components based on the provided configuration.
-   * @param selects - Array of Select configurations.
-   * @returns Array of rendered Select components.
-   */
-  const renderSelects = (selects: typeof selectConfigs) => {
-    return selects.map((select, index) => (
-      <div key={index}>
-        <label className="text-sm text-gray-400 mb-1" htmlFor={`${select.label}-select`}>
-          {select.label}
-        </label>
-        <Select value={select.value} onValueChange={select.onChange}>
-          <SelectTrigger className="w-full bg-gray-700 text-white hover:bg-gray-600 rounded-md">
-            <SelectValue className="text-gray-400" placeholder={select.placeholder} />
-          </SelectTrigger>
-          <SelectContent className="bg-gray-700 text-white rounded-md">
-            {select.options.map((option, idx) => (
-              <SelectItem key={idx} value={option} className="hover:bg-gray-600 text-gray-300">
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    ));
-  };
-    // Command Input State
-   //onst [command, setCommand] = useState<string>(""); // Current command input
-
-  const [command, setCommandValue] = useState<string>("");
-
-  const handleSendCommand = () => {
-    const trimmedCommand = command.trim();
-  
-    if (!trimmedCommand) {
-      toast.error("Command cannot be empty.");
-      return;
-    }
-  
-    try {
-      handleSend(trimmedCommand, sendCommand, setCommandValue);
-      toast.success("Command sent successfully!");
-      console.log(`Comando enviado: ${trimmedCommand}`);
-    } catch (error) {
-      toast.error("Failed to send command.");
-      console.error("Erro ao enviar comando:", error);
-    }
-  };
-  
-  const sendCommand = (cmd: string) => {
-    console.log(`Enviando comando: ${cmd}`);
-  };
-
-
-  return (
-    <main className="h-screen w-screen bg-gradient-to-b from-[#0a0a0a] via-[#131313] to-[#09090a]">
-      {/* Toast Notifications Provider */}
-      <ToastProvider />
-
-      {/* Custom Top Bar */}
-      <div
-        data-tauri-drag-region
-        className="flex items-center justify-between px-4 py-2 bg-gradient-radial from-[#0a0a0a] via-[#202020] to-[#19191a] select-none"
+ /**
+ * Renders a list of Select components based on the provided configuration.
+ * @param selects - Array of Select configurations.
+ * @returns Array of rendered Select components.
+ */
+const renderSelects = (selects: typeof selectConfigs, additionalClasses = "w-48") => {
+  return selects.map((select, index) => (
+    <div key={index} className={`flex flex-col space-y-1 ${additionalClasses}`}>
+      {/* Label */}
+      <label
+        className="text-sm text-gray-400 mb-1"
+        htmlFor={`${select.label}-select`}
       >
-        {/* Logo and Title */}
-        <div className="flex items-center">
-          <Image
-            src="/DcubeD_white.svg"
-            alt="DCUBED Logo"
-            width={40}
-            height={40}
-            className="mr-2"
+        {select.label}
+      </label>
+      {/* Select Component */}
+      <Select value={select.value} onValueChange={select.onChange}>
+        <SelectTrigger className="bg-gray-700 text-white hover:bg-gray-600 rounded-md">
+          <SelectValue
+            className="text-gray-400"
+            placeholder={select.placeholder}
           />
-          <span className="text-white font-bold tracking-widest text-lg">
-            DCubed - ISM Controller
-          </span>
-        </div>
-
-        {/* Window Control Buttons */}
-        <div className="flex items-center space-x-2">
-          {/* Minimize Button */}
-          <button
-            onClick={() => minimizeApp(appWindow)} // Minimize the application window
-            className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none"
-            aria-label="Minimize"
-          >
-            <Minus size={20} />
-          </button>
-          {/* Maximize Button */}
-          <button
-            onClick={() => maximizeApp(appWindow)} // Maximize the application window
-            className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none"
-            aria-label="Maximize"
-          >
-            <Maximize size={20} />
-          </button>
-          {/* Close Button */}
-          <button
-            onClick={() => setIsExportModalOpen(true)} // Open the close confirmation dialog
-            className="p-2 text-gray-500 hover:text-red-500 focus:outline-none"
-            aria-label="Close"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Close Confirmation Dialog */}
-        <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
-          <DialogContent className="bg-gradient-to-br from-[#000000] via-[#111111] to-[#0b020f] text-white border-2 border-gray-900 rounded-2xl">
-            <DialogHeader>
-              <DialogTitle>Close Application</DialogTitle>
-              <DialogDescription>
-                Are you sure you want to close the application? Any unsaved changes will be lost.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button
-                className="bg-white hover:bg-gray-300 hover:text-gray-900 text-black"
-                variant="ghost"
-                onClick={() => setIsExportModalOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => closeApp(appWindow)} // Close the application window
-                className="bg-red-700 hover:bg-red-800 text-white"
-              >
-                Yes, Close
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {/* Serial Connection and Control Panel Section */}
-      <div className="w-full flex flex-col space-y-6 p-4">
-        <div className="grid grid-cols-12 gap-4">
-          {/* Render Select Dropdowns for Port and Baud Rate */}
-          {renderSelects(selectConfigs)}
-        </div>
-
-        <div className="grid grid-cols-12 gap-4">
-          {/* Update Ports Button */}
-          <Button
-            variant="default"
-            size="sm"
-            onClick={fetchPorts}
-            disabled={isUpdatingPorts}
-            className="w-full bg-gray-700 hover:bg-gray-600 text-gray-300 px-3 py-1"
-          >
-            {isUpdatingPorts && <RotateCcw className="animate-spin mr-2" />} {/* Loading spinner */}
-            <span>Update Ports</span>
-          </Button>
-
-          <div className="flex items-end">
-            {/* Connect/Disconnect Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleConnection}
-              disabled={port === "None" || isUpdatingPorts}
-              className={clsx(
-                "w-full flex items-center justify-center px-3 py-1 rounded-md",
-                isConnected
-                  ? "bg-red-600 hover:bg-red-500 text-white"
-                  : "bg-green-600 hover:bg-green-500 text-white"
-              )}
+        </SelectTrigger>
+        <SelectContent className="bg-gray-700 text-white rounded-md">
+          {select.options.map((option, idx) => (
+            <SelectItem
+              key={idx}
+              value={option}
+              className="hover:bg-gray-600 text-gray-300"
             >
-              {isConnected ? (
-                <>
-                  <Plug2 className="w-5 h-5 mr-2" /> Disconnect
-                </>
-              ) : (
-                <>
-                  <Power className="w-5 h-5 mr-2" /> Connect
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        {/* Main Control Buttons */}
-        <div className="flex space-x-8">
-          {renderButtons(controlButtons)}
-        </div>
-
-        <div className="flex space-x-8">
-          {/* Devices Control Panel */}
-          <div className="grid grid-cols-3 gap-4">
-            {/* LEDs Control Section */}
-            <div className="space-y-4">
-              <Card className="bg-gradient-to-b from-[#08060a] via-[#000000] to-[#08010f] rounded-lg border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow">
-                <CardHeader className="mb-2">
-                  <CardTitle className="text-xl text-center text-gray-100">LEDs</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {leds.map((led) => (
-                      <div key={led.id} className="flex flex-col space-y-2">
-                        {/* LED Card */}
-                        <div
-                          className={clsx(
-                            "p-4 rounded-md transition-all duration-300 flex flex-col space-y-4 overflow-hidden bg-gradient-to-b from-gray-800 via-black to-gray-900 border-2",
-                            led.status === "ON" ? "border-purple-500" : "border-gray-700",
-                            isRecording && "opacity-50 cursor-not-allowed" // Disable interactions during recording
-                          )}
-                        >
-                          {/* LED Header with Toggle Button */}
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-2xl font-bold text-white">LED {led.id}</h3>
-                            <Button
-                              onClick={() => handleLEDToggle(led.id)} // Toggle LED on/off
-                              disabled={!isConnected || isRecording}
-                              variant="ghost"
-                              className={clsx(
-                                "p-2 transition-all text-lg",
-                                led.status === "ON" ? "text-purple-500 hover:text-purple-600" : "text-gray-500 hover:text-gray-400"
-                              )}
-                              aria-label={`Toggle LED ${led.id}`}
-                            >
-                              {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
-                            </Button>
-                          </div>
-
-                          {/* LED Icon Display */}
-                          <div className="flex justify-center text-2xl w-full h-full animate-blink">
-                            <LEDIcon intensity={led.intensity} />
-                            <div className="flex items-center space-x-2">
-                              <span
-                                className={`text-[#7221bd] text-lg font-extrabold`}
-                              >
-                                {led.status}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Intensity Slider and Input */}
-                          <div className="flex items-center space-x-4">
-                            <CustomTooltip content="Adjust Intensity (%)" placement="top">
-                              <CustomSlider
-                                value={tempIntensity}
-                                onChange={(value) => setTempIntensity(value)} // Update temporary intensity
-                                min={0}
-                                max={100}
-                                step={0.1}
-                                disabled={!isConnected || led.status === "OFF" || isRecording}
-                              />
-                            </CustomTooltip>
-                            <CustomTooltip content="Set Intensity (%)" placement="top">
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  value={tempIntensity}
-                                  onChange={(e) =>
-                                    setTempIntensity(
-                                      Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
-                                    )
-                                  }
-                                  className="w-20 text-sm bg-gray-700 text-white rounded-md appearance-none"
-                                  min={0}
-                                  max={100}
-                                  step={0.1}
-                                  disabled={!isConnected || led.status === "OFF" || isRecording}
-                                  style={{
-                                    MozAppearance: "textfield",
-                                  }}
-                                  onWheel={(e) => e.currentTarget.blur()} // Prevent scroll wheel changes
-                                />
-                                <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">%</span>
-                              </div>
-                            </CustomTooltip>
-                          </div>
-
-                          {/* Update LED Button */}
-                          <Button
-                            onClick={() => handleLEDIntensityChange(led.id, tempIntensity)} // Apply intensity change
-                            className="px-3 py-2 bg-[#7221bd] hover:bg-[#451f68] text-white rounded-md"
-                            disabled={!isConnected || led.status === "OFF" || isRecording}
-                          >
-                            Update
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Light Barriers and Motors Control Sections */}
-            <div className="space-y-4 h-[1000px]">
-              {/* Light Barriers Control Section */}
-              <Card className="bg-gradient-to-b from-[#08060a] via-[#000000] to-[#0c0116] rounded-lg border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow">
-                <CardHeader className="mb-2">
-                  <CardTitle className="text-xl text-center text-gray-100">Light Barriers</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4">
-                    {lightBarriers.map((lb) => (
-                      <div key={lb.id} className="flex flex-col space-y-2">
-                        {/* Light Barrier Card */}
-                        <div
-                          className={clsx(
-                            "p-4 rounded-md transition-all duration-300 flex flex-col space-y-4 overflow-hidden bg-gradient-to-b from-gray-800 via-black to-gray-900",
-                            isRecording && "opacity-50 cursor-not-allowed" // Disable interactions during recording
-                          )}
-                        >
-                          {/* Light Barrier Header */}
-                          <div className="flex justify-center items-center">
-                            <h3 className="text-lg font-bold text-white">LB {lb.id}</h3>
-                          </div>
-
-                          {/* Light Barrier Icon */}
-                          <div className="flex justify-center">
-                            <LightBarrierIcon
-                              status={lb.status}
-                              color={
-                                lb.status === "OK"
-                                  ? "#8d00b0"
-                                  : lb.status === "WARNING"
-                                  ? "#FFFF00"
-                                  : "#FF0000"
-                              }
-                              glowIntensity={1.0}
-                              glowSpeed={1.5}
-                            />
-                          </div>
-
-                          {/* Light Barrier Status */}
-                          <div className="text-center font-semibold">
-                            <span
-                              className={
-                                lb.status === "OK"
-                                  ? "text-[#8d00b0]"
-                                  : lb.status === "WARNING"
-                                  ? "text-yellow-500"
-                                  : "text-red-500"
-                              }
-                            >
-                              {lb.status}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Motors Control Section */}
-              <Card className="w-[600px] bg-gradient-to-b from-[#08060a] via-[#000000] to-[#180230] rounded-lg border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow">
-                <CardHeader className="mb-2">
-                  <CardTitle className="text-xl text-center text-gray-100">Motors</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    {motors.map((motor) => (
-                      <div key={motor.id} className="flex flex-col space-y-2">
-                        {/* Motor Card */}
-                        <div
-                          className={clsx(
-                            "p-4 rounded-md transition-all duration-300 flex flex-col space-y-4 overflow-hidden bg-gradient-to-b from-gray-800 via-black to-gray-900 border-2",
-                            motor.status === "ON" ? "border-purple-500" : "border-gray-700",
-                            isRecording && "opacity-50 cursor-not-allowed" // Disable interactions during recording
-                          )}
-                        >
-                          {/* Motor Header with Toggle Button */}
-                          <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-white">Motor {motor.id}</h3>
-                            <Button
-                              onClick={() => handleMotorToggle(motor.id)} // Toggle Motor on/off
-                              disabled={!isConnected || isRecording}
-                              variant="ghost"
-                              className={clsx(
-                                "p-2 transition-all text-lg",
-                                motor.status === "ON" ? "text-purple-500 hover:text-purple-600" : "text-gray-500 hover:text-gray-400"
-                              )}
-                              aria-label={`Toggle Motor ${motor.id}`}
-                            >
-                              {motor.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
-                            </Button>
-                          </div>
-
-                          {/* Motor Icon Display */}
-                          <div className="flex justify-center">
-                            <MotorIcon speed={motor.speed} direction={motor.direction} status={motor.status} />
-                          </div>
-
-                          {/* Speed Slider and Input */}
-                          <div className="flex items-center space-x-4">
-                            <CustomTooltip content="Adjust Speed (Hz)" placement="top">
-                              <CustomSlider
-                                value={motor.speed}
-                                onChange={(value) => handleMotorSpeedChange(motor.id, value)}
-                                min={0}
-                                max={5000}
-                                step={100}
-                                disabled={!isConnected || motor.status === "OFF" || isRecording}
-                              />
-                            </CustomTooltip>
-                            <CustomTooltip content="Set Speed (Hz)" placement="top">
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  value={motor.speed}
-                                  onChange={(e) =>
-                                    handleMotorSpeedChange(
-                                      motor.id,
-                                      Math.min(5000, Math.max(0, parseInt(e.target.value) || 0))
-                                    )
-                                  }
-                                  className="w-20 text-sm bg-gray-700 text-white rounded-md appearance-none"
-                                  min={0}
-                                  max={5000}
-                                  step={100}
-                                  disabled={!isConnected || motor.status === "OFF" || isRecording}
-                                  style={{
-                                    MozAppearance: "textfield",
-                                  }}
-                                  onWheel={(e) => e.currentTarget.blur()} // Prevent scroll wheel changes
-                                />
-                                <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs">Hz</span>
-                              </div>
-                            </CustomTooltip>
-                          </div>
-
-                          {/* Direction Control and Update Button */}
-                          <div className="flex justify-between items-center">
-                            <div className="text-sm text-gray-200">Direction: {motor.direction}</div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleMotorDirectionToggle(motor.id)} // Toggle Motor direction
-                              className="text-blue-400 hover:text-blue-500"
-                              aria-label={`Toggle direction of Motor ${motor.id}`}
-                              disabled={!isConnected || motor.status === "OFF" || isRecording}
-                            >
-                              {motor.direction === "CW" ? <RefreshCcw /> : <RefreshCw />}
-                            </Button>
-                            <Button
-                              onClick={() => updateMotorValue(motor.id)} // Apply Motor value updates
-                              className="bg-green-500 hover:bg-green-600 text-white"
-                              disabled={!isConnected}
-                            >
-                              Update
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Debug Box Section */}
-            <div>
-            <DebugBox
-        logs={logs}
-        clearLogs={() => clearLogs(setLogs)()}
-        deleteLog={(index) => deleteLog(setLogs, index)}
-        sendCommand={handleSendCommand}
-      />
-          </div>
-           </div>
-           </div>
-
-        {/* Export Logs Modal */}
-        <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
-          <DialogContent className="bg-gradient-to-br from-[#000000] via-[#111111] to-[#0b020f] text-white border-2 border-gray-900 rounded-2xl w-[1000px]">
-            <DialogHeader>
-              <DialogTitle>Export Logs</DialogTitle>
-              <DialogDescription>
-                Choose the format in which you want to export the logs.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <div className="flex space-x-2 mx-auto">
-                {/* Export as CSV */}
-                <Button
-                  onClick={() => {
-                    handleExportLogs("csv");
-                    setIsExportModalOpen(false);
-                  }}
-                  className="bg-[#461c8f] hover:bg-gray-700 text-white"
-                >
-                  <Download className="w-4 h-4 mr-2" /> CSV
-                </Button>
-                {/* Export as PDF */}
-                <Button
-                  onClick={() => {
-                    handleExportLogs("pdf");
-                    setIsExportModalOpen(false);
-                  }}
-                  className="bg-[#461c8f] hover:bg-red-700 text-white"
-                >
-                  <Download className="w-4 h-4 mr-2" /> PDF
-                </Button>
-                {/* Export as Excel */}
-                <Button
-                  onClick={() => {
-                    handleExportLogs("excel");
-                    setIsExportModalOpen(false);
-                  }}
-                  className="bg-[#461c8f] hover:bg-green-700 text-white"
-                >
-                  <Download className="w-4 h-4 mr-2" /> XLSX
-                </Button>
-              </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </main>
-  );
-  
-
-  /**
-   * Toggles the status of a specific LED (ON/OFF).
-   * @param id - The ID of the LED.
-   */
-  async function handleLEDToggle(id: number) {
-    const led = leds.find((l) => l.id === id);
-    if (!led) return;
-
-    const newStatus = led.status === "ON" ? "OFF" : "ON";
-    const newIntensity = newStatus === "ON" ? 100 : 0;
-
-    const success = await handleLEDCommand(id, newStatus, newIntensity);
-    if (success) {
-      updateLEDStatus(id, newStatus, newIntensity);
-      toast.success(`LED ${id} turned ${newStatus === "ON" ? "on" : "off"}.`);
-    } else {
-      toast.error(`Failed to turn ${newStatus === "ON" ? "on" : "off"} LED ${id}.`);
-    }
-  }
-
-  /**
-   * Changes the intensity of a specific LED.
-   * @param id - The ID of the LED.
-   * @param value - The new intensity value.
-   */
-  async function handleLEDIntensityChange(id: number, value: number) {
-    const led = leds.find((l) => l.id === id);
-    if (!led) return;
-
-    // Only update if the LED is ON
-    if (value === 0) {
-      handleLEDToggle(id); // Turn off the LED via the toggle function
-      return;
-    }
-
-    const newStatus = "ON";
-
-    const success = await handleLEDCommand(id, newStatus, value);
-    if (success) {
-      updateLEDStatus(id, newStatus, value);
-      toast.success(`LED ${id} intensity adjusted to ${value}%.`);
-    } else {
-      toast.error(`Failed to adjust intensity of LED ${id}.`);
-    }
-  }
-
-  /**
-   * Toggles the status of a specific Motor (ON/OFF).
-   * @param id - The ID of the Motor.
-   */
-  async function handleMotorToggle(id: number) {
-    const motor = motors.find((m) => m.id === id);
-    if (!motor) return;
-
-    const newStatus = motor.status === "ON" ? "OFF" : "ON";
-    const newSpeed = newStatus === "ON" ? motor.speed || 1000 : 0;
-
-    const success = await handleMotorCommand(id, newStatus, newSpeed, motor.direction);
-    if (success) {
-      updateMotorStatus(id, newStatus, newSpeed, motor.direction);
-      toast.success(`Motor ${id} turned ${newStatus === "ON" ? "on" : "off"}.`);
-    } else {
-      toast.error(`Failed to turn ${newStatus === "ON" ? "on" : "off"} Motor ${id}.`);
-    }
-  }
-
-  /**
-   * Changes the speed of a specific Motor.
-   * @param id - The ID of the Motor.
-   * @param value - The new speed value.
-   */
-  async function handleMotorSpeedChange(id: number, value: number) {
-    setTempMotorValues((prev) => ({
-      ...prev,
-      [id]: { speed: value, direction: motors.find((m) => m.id === id)?.direction || "CW" },
-    }));
-
-    // Clear any existing timeout for reverting the speed
-    if (revertTimeouts.current[id]) clearTimeout(revertTimeouts.current[id]);
-
-    // Set a timeout to revert the speed if no update is made within 3 seconds
-    revertTimeouts.current[id] = setTimeout(() => {
-      setTempMotorValues((prev) => {
-        const oldMotor = motors.find((m) => m.id === id);
-        return oldMotor
-          ? { ...prev, [id]: { speed: oldMotor.speed, direction: oldMotor.direction } }
-          : prev;
-      });
-      toast.info(`Motor ${id} speed reverted.`);
-    }, 3000);
-  }
-
-  /**
-   * Applies the temporary Motor speed changes.
-   * @param id - The ID of the Motor.
-   */
-  async function updateMotorValue(id: number) {
-    const tempValue = tempMotorValues[id];
-    if (!tempValue) return;
-
-    await handleMotorCommand(id, "ON", tempValue.speed, tempValue.direction as "CW" | "CCW");
-    updateMotorStatus(id, "ON", tempValue.speed, tempValue.direction as "CW" | "CCW");
-    clearTimeout(revertTimeouts.current[id]); // Clear the revert timeout
-    delete revertTimeouts.current[id]; // Remove the timeout reference
-    toast.success(`Motor ${id} updated successfully.`);
-  }
-
-  /**
-   * Toggles the direction of a specific Motor (CW/CCW).
-   * @param id - The ID of the Motor.
-   */
-  async function handleMotorDirectionToggle(id: number) {
-    const motor = motors.find((m) => m.id === id);
-    if (!motor) return;
-
-    const newDirection = motor.direction === "CW" ? "CCW" : "CW";
-
-    const success = await handleMotorCommand(id, motor.status, motor.speed, newDirection);
-    if (success) {
-      updateMotorStatus(id, motor.status, motor.speed, newDirection);
-      toast.success(`Motor ${id} direction set to ${newDirection}.`);
-    } else {
-      toast.error(`Failed to set direction of Motor ${id}.`);
-    }
-  }
+              {option}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ));
 };
+
+
+return (
+<main className="relative h-screen w-screen bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a]">
+  {/* Overlay de carregamento */}
+  <LoadingOverlay isLoading={isConnecting} />
+
+  {/* Conteúdo principal */}
+  <ToastProvider />
+  <Header
+    onMinimize={() => minimizeApp(appWindow)}
+    onMaximize={() => maximizeApp(appWindow)}
+    onClose={() => closeApp(appWindow)}
+    isCloseModalOpen={isCloseModalOpen}
+    setIsCloseModalOpen={setIsCloseModalOpen}
+  />
+
+  {/* Layout principal */}
+  <div className="w-full grid grid-cols-3 items-center p-4 gap-x-4 gap-y-6">
+    {/* Coluna Esquerda */}
+    <div className="flex items-center space-x-4 self-start">
+      {renderSelects(selectConfigs, "w-28")}
+      <div className="grid grid-cols-2 gap-4 mt-7">
+        <Button
+          onClick={toggleConnection}
+          disabled={!port || isUpdatingPorts || isProductionMode}
+          className={clsx(
+            "w-full flex items-center justify-center px-2 py-1 rounded-lg active:scale-75 transition-all ",
+            isConnected
+              ? "bg-red-600 hover:bg-red-500 text-white"
+              : "bg-green-600 hover:bg-green-500 text-white"
+          )}
+        >
+          {isConnected ? (
+            <>
+              <Plug2 className="w-5 h-5 mr-1" /> Disconnect
+            </>
+          ) : (
+            <>
+              <Power className="w-5 h-5 mr-1" /> Connect
+            </>
+          )}
+        </Button>
+        <Button
+          onClick={fetchPorts}
+          disabled={isUpdatingPorts || isProductionMode}
+          className="w-12 bg-gray-700 hover:bg-gray-600 text-gray-300 px-2 py-1 rounded-lg flex items-center justify-center"
+        >
+          <RefreshCcw className="w-5 h-5" />
+        </Button>
+      </div>
+    </div>
+
+    {/* Coluna Central */}
+    <div className="flex justify-center items-start mt-8">
+      {/* Adiciona margem superior para descer a Light Barrier */}
+      <LightBarrierCard
+        lightBarriers={lightBarriers} // Array inicial
+        isConnected={isConnected}
+        handleLightBarrierUpdate={(id, status) => {
+          console.log(`Light Barrier ${id} updated to ${status}`);
+          updateLightBarrierStatus(id, status); // Chamada correta da função
+        }}
+      />
+    </div>
+
+    {/* Coluna Direita */}
+    <div className="flex justify-end space-x-4 self-start">
+      <button
+        onClick={isProductionMode ? disableProductionMode : sendProductionMode}
+        disabled={isUpdatingPorts || !isConnected}
+        className={clsx(
+          "flex flex-col items-center justify-center h-[50px] w-[100px] rounded-lg font-medium transition-all text-sm",
+          isProductionMode
+            ? "bg-green-600 hover:bg-green-500 text-white shadow-md shadow-green-700"
+            : !isConnected
+            ? "bg-gray-500 text-gray-400 cursor-not-allowed"
+            : "bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md shadow-gray-200"
+        )}
+      >
+        <Settings size={18} className="mb-1" />
+        {isProductionMode ? "Deactivate" : "Production"}
+      </button>
+      <button
+            onClick={sendReset}
+            disabled={port === "None" || isUpdatingPorts || !isConnected}
+            className={clsx(
+              "flex flex-col items-center justify-center h-[50px] w-[100px] rounded-lg font-medium transition-all text-sm",
+              port === "None" || isUpdatingPorts || !isConnected
+            ? "bg-gray-500 text-gray-400 cursor-not-allowed"
+            : "bg-gray-700 hover:bg-gray-600 text-gray-300 shadow-md shadow-gray-200"
+            )}
+          >
+            <RouteOff size={18} className="mb-1" />
+            Reset
+          </button>
+    </div>
+  </div>
+
+  {/* Seção de Controle de Dispositivos */}
+  <div className="flex flex-col space-y-4 mt-8 px-4">
+    {/* Grid para LEDs, Light Barriers e Motores */}
+    <div className="grid grid-cols-3 gap-4">
+      {/* LEDs */}
+      <LEDCard
+        leds={leds}
+        isConnected={isConnected}
+        isRecording={isRecording}
+        handleLEDToggle={(id) =>
+          handleLEDToggleHandler(
+            id,
+            leds,
+            updateLEDStatusFunction,
+            handleAddLog
+          )
+        }
+        handleLEDSetIntensity={(id, intensity) =>
+          handleLEDSetIntensityHandler(
+            id,
+            intensity,
+            leds,
+            updateLEDStatusFunction,
+            handleAddLog
+          )
+        }
+        isProductionMode={isProductionMode}
+      />
+
+      {/* Motors Control Section */}
+      <MotorCard
+        motors={motors}
+        isConnected={isConnected}
+        isRecording={isRecording}
+        handleMotorToggle={(id) =>
+          handleMotorToggleHandler(
+            id,
+            motors,
+            updateMotorStatusFunction,
+            handleAddLog
+          )
+        }
+        handleMotorSet={(id, speed, direction) =>
+          handleMotorUpdateHandler(
+            id,
+            speed,
+            direction,
+            motors,
+            updateMotorStatusFunction,
+            handleAddLog
+          )
+        }
+        isProductionMode={isProductionMode}
+      />
+
+      {/* Debug Box Section */}
+      <DebugBox
+        logs={logs}
+        setLogs={setLogs}
+        copyLogs={copyLogs}
+        handleAddLog={handleAddLog}
+        handleExport={exportLogs}
+      />
+    </div>
+  </div>
+</main>
+)
+}
 
 export default Home;

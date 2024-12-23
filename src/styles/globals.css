@@ -18,13 +18,16 @@
 
 body {
   color: rgb(var(--foreground-rgb));
+  font-family: 'Fira Code', monospace;
   background: linear-gradient(
       to bottom,
       transparent,
       rgb(var(--background-end-rgb))
     )
     rgb(var(--background-start-rgb));
+
 }
+
 
 @layer base {
   :root {
@@ -307,12 +310,256 @@ input[type="number"] {
   animation: neonGlow 2s infinite alternate;
 }
 
-@keyframes blink {
+@keyframes smooth-blink {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1); /* Tamanho normal */
+    color: #000; /* Cor inicial */
+  }
   50% {
-    opacity: 0.5;
+    opacity: 0.7;
+    transform: scale(1); /* Leve crescimento */
+    color: #ffffff; /* Alterar a cor durante o piscar */
   }
 }
 
 .animate-blink {
-  animation: blink 1s infinite;
+  animation: smooth-blink 2s ease-in-out infinite;
+}
+
+.neon-border {
+  position: relative;
+  border: 2px solid rgba(128,0,255,0.7);
+  background: linear-gradient(to bottom, #0a0a0a, #000000);
+  box-shadow: 0 0 10px rgba(128,0,255,0.5);
+  animation: neonPulse 3s infinite alternate;
+}
+
+@keyframes neonPulse {
+  0% {
+    box-shadow: 0 0 10px rgba(128,0,255,0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(128,0,255,0.9);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(128,0,255,0.5);
+  }
+}
+
+/* globals.css */
+
+/* Ajustes de contraste no DatePicker e TimePicker */
+.react-datepicker__triangle,
+.react-time-picker__wrapper,
+.react-time-picker,
+.react-date-picker {
+  background-color: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #333 !important;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day,
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-time-picker__clear-button,
+.react-time-picker__clock-button,
+.react-time-picker__inputGroup {
+  color: #e0e0e0 !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background-color: #444 !important;
+  color: #fff !important;
+}
+
+.react-time-picker__inputGroup__input {
+  background: #1a1a1a !important;
+  color: #e0e0e0 !important;
+  border: none !important;
+}
+
+.react-time-picker__inputGroup__divider {
+  color: #e0e0e0 !important;
+}
+
+/* Scrollbar customizada para debug box */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #111;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #444;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #666;
+}
+
+/* src/styles/global.css */
+
+/* Animação fade-in */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+/* Animação bounce */
+@keyframes bounce-slow {
+  0%, 100% {
+    transform: translateY(-10%);
+  }
+  50% {
+    transform: translateY(0);
+  }
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 1.5s infinite;
+}
+
+/* Animação spin */
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 1.2s linear infinite;
+}
+
+@keyframes neon-border-active {
+  0% {
+    box-shadow: 0 0 8px rgba(0, 255, 127, 0.7), 0 0 16px rgba(0, 255, 127, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(0, 255, 127, 0.9), 0 0 24px rgba(0, 255, 127, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(0, 255, 127, 0.7), 0 0 16px rgba(0, 255, 127, 0.5);
+  }
+}
+
+@keyframes neon-border-inactive {
+  0% {
+    box-shadow: 0 0 8px rgba(255, 118, 117, 0.7), 0 0 16px rgba(255, 118, 117, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 118, 117, 0.9), 0 0 24px rgba(255, 118, 117, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 8px rgba(255, 118, 117, 0.7), 0 0 16px rgba(255, 118, 117, 0.5);
+  }
+}
+
+.light-barrier {
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom, #0a0a0a, #070707, #000000);
+}
+
+.light-barrier-active {
+  border: 2px solid #00ff7f;
+  animation: neon-border-active 2s linear infinite;
+}
+
+.light-barrier-inactive {
+  border: 2px solid #ff7675;
+  animation: neon-border-inactive 2s linear infinite;
+}
+
+.light-barrier-text {
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.light-barrier-status-active {
+  color: #00ff7f;
+}
+
+.light-barrier-status-inactive {
+  color: #ff7675;
+}
+
+@keyframes neon-green {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(0, 255, 127, 0.8), 0 0 16px rgba(0, 255, 127, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(0, 255, 127, 1), 0 0 24px rgba(0, 255, 127, 0.7);
+  }
+}
+
+@keyframes neon-red {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(255, 118, 117, 0.8), 0 0 16px rgba(255, 118, 117, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(255, 118, 117, 1), 0 0 24px rgba(255, 118, 117, 0.7);
+  }
+}
+
+.animate-neon-green {
+  animation: neon-green 2s infinite alternate;
+}
+
+.animate-neon-red {
+  animation: neon-red 2s infinite alternate;
+}
+
+
+/* Efeito 3D e sombra para o Switch */
+.switcher {
+  perspective: 1000px;
+}
+
+.switcher-inner.active {
+  /* Quando ativo, aumenta a elevação */
+  transform: translateX(100%) scale(0.7);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.3);
+}
+
+.switcher-inner.inactive {
+  /* Quando inativo, reduz a elevação */
+  transform: translateX(0) scale(1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Estilos para a bolinha do switcher */
+.switcher-thumb {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Opcional: Efeito de elevação ao hover */
+.switcher-inner:hover {
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.35);
+}
+
+
+.custom-slider .track {
+  background-color: #5DA9E9;
+}
+
+.custom-slider .thumb {
+  background-color: #5DA9E9;
 }

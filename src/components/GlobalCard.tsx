@@ -115,7 +115,7 @@ const GlobalCard: React.FC<GlobalCardProps> = ({
         <CustomTooltip content={`Update ${type}`} placement="bottom">
           <Button
             onClick={onUpdate}
-            className={`mt-4 px-4 py-2 rounded-lg text-white ${
+            className={`mb-2 px-4 py-2 rounded-lg text-white ${
               isUpdating ? "bg-purple-800 cursor-not-allowed" : "bg-purple-500 hover:bg-purple-600 cursor-pointer"
             }`}
             disabled={isUpdating}

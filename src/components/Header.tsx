@@ -1,11 +1,16 @@
-// components/Header.tsx
-import Image from 'next/image';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+//src/components/Header.tsx
 import React from "react";
-import { X, Minus , Maximize, Minimize} from "lucide-react";
-import { Button } from "@/components/ui/button";
-
-
+import Image from "next/image";
+import { Minus, Maximize, X } from "lucide-react";
+import {
+  Dialog,
+  DialogFooter,
+  DialogHeader,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
 
 interface HeaderProps {
   onMinimize: () => void;
@@ -20,15 +25,14 @@ const Header: React.FC<HeaderProps> = ({
   onMaximize,
   onClose,
   isCloseModalOpen,
-  setIsCloseModalOpen
+  setIsCloseModalOpen,
 }) => {
   return (
-    <div
-      data-tauri-drag-region
-      className="flex items-center justify-between px-4 py-2 bg-gradient-radial from-[#0a0a0a] via-[#202020] to-[#19191a] select-none"
-    >
-      {/* Logo and Title */}
-      <div className="flex items-center">
+    <div 
+    data-tauri-drag-region
+    className="flex items-center justify-between bg-gradient-radial from-[#0a0a0a] via-[#161515e8] to-[#0c0c0c] select-none h-12">
+      {/* Logo e Área de Título com Área de Arrasto */}
+      <div className="flex items-center px-4 py-2">
         <Image
           src="/DcubeD_white.svg"
           alt="DCUBED Logo"
@@ -41,41 +45,39 @@ const Header: React.FC<HeaderProps> = ({
         </span>
       </div>
 
-      {/* Window Control Buttons */}
-      <div className="flex items-center space-x-2">
-        {/* Minimize Button */}
+      {/* Botões de Controle da Janela */}
+      <div className="flex items-center space-x-2 px-4 py-2">
         <button
           onClick={onMinimize}
-          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none"
+          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
           aria-label="Minimize"
         >
-          <Minus size={20} />
+          <Minus size={22} /> {/* Aumento do tamanho do ícone */}
         </button>
-        {/* Maximize Button */}
         <button
           onClick={onMaximize}
-          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none"
+          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
           aria-label="Maximize"
         >
-          <Maximize size={20} />
+          <Maximize size={22} /> {/* Aumento do tamanho do ícone */}
         </button>
-        {/* Close Button */}
         <button
           onClick={() => setIsCloseModalOpen(true)}
-          className="p-2 text-gray-500 hover:text-red-500 focus:outline-none"
+          className="p-2 text-gray-500 hover:text-red-500 focus:outline-none cursor-pointer"
           aria-label="Close"
         >
-          <X size={20} />
+          <X size={22} /> {/* Aumento do tamanho do ícone */}
         </button>
       </div>
 
-      {/* Close Confirmation Dialog */}
+      {/* Diálogo de Confirmação de Fechamento */}
       <Dialog open={isCloseModalOpen} onOpenChange={setIsCloseModalOpen}>
         <DialogContent className="bg-gradient-to-br from-[#000000] via-[#111111] to-[#0b020f] text-white border-2 border-gray-900 rounded-2xl">
           <DialogHeader>
             <DialogTitle>Close Application</DialogTitle>
             <DialogDescription>
-              Are you sure you want to close the application? Any unsaved changes will be lost.
+              Are you sure you want to close the application? Any unsaved
+              changes will be lost.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

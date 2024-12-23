@@ -1,11 +1,18 @@
 // src/types/Motor.ts
 
-export enum Status {
-  OK = "OK",
-  ERROR = "ERROR",
-  WARNING = "WARNING",
+export enum LightBarrierStatus {
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE",
 }
 
+/**
+ * Tipo para Light Barriers.
+ */
+export interface LightBarrier {
+  id: number;
+  status: LightBarrierStatus; // Usando o enum aqui
+  lastChanged: string;
+}
 /**
  * Tipo para LEDs.
  */
@@ -27,22 +34,14 @@ export interface Motor {
   lastChanged: string;
 }
 
-/**
- * Tipo para Light Barriers.
- */
-export interface LightBarrier {
-  id: number;
-  status: "OK" | "ERROR";
-  lastChanged: string;
-}
 
 
 export interface Log {
   message: string;
   type: "error" | "success" | "info" | "warning";
-  color?: string;
+  color?: string; // Opcional, se usado para estilização
+  timestamp: string; // Obrigatório, deve ser uma string representando a data/hora
 }
-
 
 export interface HomeProps {
   led: LED; // LED data: id, status (ON/OFF), intensity
@@ -86,7 +85,7 @@ export interface LEDCardProps {
 export interface LightBarrierCardProps {
   lightBarrier: {
     id: number;
-    status: "OK" | "ERROR" | "WARNING";
+    status: "ACTIVE" | "INACTIVE";
     lastChanged: string;
   };
   isConnected: boolean;
@@ -118,4 +117,18 @@ export interface GlobalCardProps {
   isUpdating: boolean; // Novo prop para indicar se está atualizando
   havePowerButton?: boolean;
   haveUpdateButton?: boolean;
+}
+
+
+
+// Interface defining the structure of Light Barriers
+export interface LightBarriers {
+  id: number;
+  status: LightBarrierStatus; // Replace string literals with the Status enum
+  lastChanged: string;
+}
+
+export interface TempMotor {
+  speed?: number;
+  direction?: 'CW' | 'CCW';
 }

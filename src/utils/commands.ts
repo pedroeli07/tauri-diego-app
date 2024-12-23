@@ -2,100 +2,204 @@
 
 import { invoke } from "@tauri-apps/api/tauri";
 import { toast } from "@/components/Toast";
-import { LED, Motor, LightBarrier } from "@/lib/types";
-
+import { addLog } from "@/lib/utils";
+ import { LightBarrierStatus } from "@/lib/types";
+ 
 /**
  * Updates the status of a Light Barrier in the UI and logs the change.
- * 
- * @param id - Identifier of the Light Barrier.
- * @param status - New status of the Light Barrier ("OK" or "ERROR").
- * @param updateLightBarrier - Function to update the Light Barrier's status in the UI.
- * @param addLog - Function to add a log entry.
  */
 export function updateLightBarrierStatus(
   id: number,
-  status: "OK" | "ERROR",
-  updateLightBarrier: (id: number, status: "OK" | "ERROR") => void,
+  status: "ACTIVE" | "INACTIVE",
+  updateLightBarrier: (id: number, status: "ACTIVE" | "INACTIVE") => void,
   addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
 ) {
   updateLightBarrier(id, status);
-  addLog(`Light Barrier ${id} status: ${status}`, "info");
+  addLog(`Light Barrier ${id} status updated to: ${status}`, "info");
+  toast.info(`Light Barrier ${id} status: ${status}`);
 }
 
-/**
- * Formats a command string by joining its parts with a pipe ('|') delimiter
- * and appending a newline character. This ensures consistency in the command
- * structure sent via the serial port.
- * 
- * @param parts - An array of strings representing different parts of the command.
- * @returns A single formatted command string.
- * 
- * @example
- * formatCommand(["LED", "3", "ON", "INTENSITY", "75"]) // "LED|3|ON|INTENSITY|75\n"
- */
-export function formatCommand(parts: string[]): string {
-  return parts.join('|') + '\n';
+
+
+// Função para gerar logs detalhados no DebugBox
+export function logCommandDetails(
+  data: number[],
+  addLog: (message: string, type?: "info" | "error" | "success" | "warning") => void
+) {
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  let description = "";
+
+  switch (commandId) {
+    case 7:
+      description = `TOGGLE_LED -> ID: ${hardwareId}, VALUE: ${value === 1 ? "ON" : "OFF"}`;
+      break;
+    case 8:
+      description = `SET_LED_INTENSITY -> ID: ${hardwareId}, VALUE: ${value}%`;
+      break;
+    case 3:
+      description = `TOGGLE_MOTOR -> ID: ${hardwareId}, VALUE: ${value === 1 ? "ON" : "OFF"}`;
+      break;
+    case 2:
+      description = `SET_MOTOR_SPEED -> ID: ${hardwareId}, SPEED: ${value} Hz`;
+      break;
+    case 1:
+      description = `SET_MOTOR_DIRECTION -> ID: ${hardwareId}, DIRECTION: ${
+        value === 0 ? "CW" : "CCW"
+      }`;
+      break;
+    case 10:
+      description = `TOGGLE_LIGHT_BARRIER -> ID: ${hardwareId}, VALUE: ${
+        value === 1 ? "ACTIVE" : "INACTIVE"
+      }`;
+      break;
+    default:
+      description = `UNKNOWN_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;
+  }
+
+  addLog(`Bytes Sent: [${data.join(", ")}] -> ${description}`, "info");
 }
 
-/**
- * Sends a formatted command string via the serial port using Tauri's `invoke` API.
- * Handles success and error notifications to the user.
- * 
- * @param command - The complete command string to be sent.
- * @returns A promise that resolves to `true` if the command was sent successfully, or `false` otherwise.
- */
-export async function sendFormattedCommand(command: string): Promise<boolean> {
+export async function sendFormattedCommand(
+  command: Uint8Array,
+  handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
+): Promise<boolean> {
   try {
-    await invoke("send_serial", { input: command });
-    console.log(`Sent Command: ${command.trim()}`);
-    toast.success(`Command Sent: ${command.trim()}`);
+    const array = Array.from(command);
+
+    // Adicionar log detalhado antes de enviar
+    logCommandDetails(array, handleAddLog);
+
+    // Envio para a porta serial
+    await invoke("send_serial", { input: array });
+
+    // Log de sucesso
+    handleAddLog(`Successfully sent bytes: [${array.join(", ")}]`, "success");
     return true;
   } catch (error) {
-    console.error(`Failed to send command: ${command.trim()}`, error);
-    toast.error(`Failed to send command: ${command.trim()}`);
+    const array = Array.from(command);
+
+    // Log de erro
+    handleAddLog(`Failed to send bytes: [${array.join(", ")}]. Error: ${error}`, "error");
+    return false;
+  }
+}
+
+
+/**
+ * Formats a command in binary format:
+ * [COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes), '\n' (1 byte)]
+ */
+/**
+ * Formats a command in binary format:
+ * [COMMAND_ID (1 byte), HARDWARE_ID (1 byte), VALUE (4 bytes), '\n' (1 byte)]
+ */
+export function formatCommand(commandId: number, hardwareId: number, value: number): Uint8Array {
+  const buffer = new Uint8Array(7);
+  buffer[0] = commandId;    // COMMAND_ID
+  buffer[1] = hardwareId;   // HARDWARE_ID
+
+  // VALUE (4 bytes unsigned 32-bit, little-endian)
+  const dataView = new DataView(buffer.buffer);
+  dataView.setUint32(2, value, true); // little-endian
+
+  buffer[6] = 0x0A; // '\n' END CHAR
+  return buffer;
+}
+
+/**
+ * Sends a formatted command via the serial port. Now expects a Uint8Array.
+ */
+export async function sendFormattedCommanddddd(
+  command: Uint8Array,
+  handleAddLog: (message: string, type: "error" | "success" | "info" | "warning") => void
+): Promise<boolean> {
+  try {
+    // Convert to numeric array
+    const array = Array.from(command); 
+    await invoke("send_serial", { input: array });
+    console.log(`Command Sent: [${array.join(', ')}]`);
+    handleAddLog(`Command Sent: [${array.join(', ')}]`, "success");
+    toast.success(`Command Sent: [${array.join(', ')}]`);
+    return true;
+  } catch (error) {
+    const array = Array.from(command);
+    console.error(`Failed to send command: [${array.join(', ')}]`, error);
+    handleAddLog(`Failed to send Command: [${array.join(', ')}]`, "error");
+    toast.error(`Failed to send command: [${array.join(', ')}]`);
     return false;
   }
 }
 
 /**
- * Handles sending commands to control an LED's state and intensity.
- * 
- * @param id - The identifier of the LED to control.
- * @param state - The desired state of the LED ("ON" or "OFF").
- * @param intensity - The desired intensity level of the LED (0-100%).
- * @returns A promise that resolves to `true` if the command was sent successfully, or `false` otherwise.
- * 
- * @example
- * handleLEDCommand(3, "ON", 75) // Sends "LED|3|ON|INTENSITY|75\n"
+ * Sends a combined command to update LED status and intensity.
+ * @param id - The ID of the LED.
+ * @param status - The desired status ("ON" | "OFF").
+ * @param intensity - The desired intensity (0-100).
+ * @returns A promise that resolves to true if the command was sent successfully.
  */
-export async function handleLEDCommand(id: number, state: "ON" | "OFF", intensity: number): Promise<boolean> {
-  const command = formatCommand(["LED", id.toString(), state, "INTENSITY", intensity.toString()]);
-  return await sendFormattedCommand(command);
+export async function handleLEDUpdate(
+  id: number,
+  status: "ON" | "OFF",
+  intensity: number,
+  handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
+): Promise<boolean> {
+  try {
+    const commandId = 9; // New command ID for combined LED update
+    const statusValue = status === "ON" ? 1 : 0;
+    const combinedValue = (intensity << 16) | statusValue;
+
+    const payload = formatCommand(commandId, id, combinedValue);
+    const success = await sendFormattedCommand(payload, handleAddLog);
+
+    if (success) {
+      handleAddLog(`LED ${id} updated to ${status} with intensity ${intensity}%.`, "info");
+      toast.success(`LED ${id} updated to ${status} with intensity ${intensity}%.`);
+      return true;
+    } else {
+      handleAddLog(`Failed to update LED ${id}.`, "error");
+      return false;
+    }
+  } catch (error) {
+    console.error("Error updating LED:", error);
+    toast.error("Error updating LED.");
+    handleAddLog(`Failed to update LED ${id}.`, "error");
+    return false;
+  }
 }
 
 /**
- * Handles sending commands to control a Motor's state, speed, and direction.
- * 
- * @param id - The identifier of the Motor to control.
- * @param state - The desired state of the Motor ("ON" or "OFF").
- * @param speed - The desired speed of the Motor in Hz.
- * @param direction - The desired direction of the Motor rotation ("CW" or "CCW").
- * @returns A promise that resolves to `true` if the command was sent successfully, or `false` otherwise.
- * 
- * @example
- * handleMotorCommand(2, "ON", 1500, "CW") // Sends "MOTOR|2|ON|SPEED|1500|DIR|CW\n"
+ * Sends commands to control the Motor (state, speed, and direction).
+ * According to the table:
+ * - MDIR (ID=1): value=0 or 1
+ * - MSPEED (ID=2): value=[1..1000]
+ * - MSTATE (ID=3): value=0 or 1 (off/on)
  */
-export async function handleMotorCommand(id: number, state: "ON" | "OFF", speed: number, direction: "CW" | "CCW"): Promise<boolean> {
-  const command = formatCommand([
-    "MOTOR",
-    id.toString(),
-    state,
-    "SPEED",
-    speed.toString(),
-    "DIR",
-    direction
-  ]);
-  return await sendFormattedCommand(command);
+export async function handleMotorCommand(
+  id: number,
+  state: "ON" | "OFF",
+  speed: number,
+  direction: "CW" | "CCW",
+  handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
+): Promise<boolean> {
+  const hardwareId = id;
+
+  // Adjust motor state
+  const mstateValue = state === "ON" ? 1 : 0;
+  const mstateCmd = formatCommand(3, hardwareId, mstateValue);
+  const stateSuccess = await sendFormattedCommand(mstateCmd, handleAddLog);
+  if (!stateSuccess) return false;
+
+  // Adjust motor speed
+  const mspeedCmd = formatCommand(2, hardwareId, speed);
+  const speedSuccess = await sendFormattedCommand(mspeedCmd, handleAddLog);
+  if (!speedSuccess) return false;
+
+  // Adjust motor direction
+  const mdirValue = direction === "CW" ? 1 : 0;
+  const mdirCmd = formatCommand(1, hardwareId, mdirValue);
+  const dirSuccess = await sendFormattedCommand(mdirCmd, handleAddLog);
+  return dirSuccess;
 }
-
-
