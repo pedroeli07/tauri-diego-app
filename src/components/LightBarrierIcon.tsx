@@ -2,16 +2,22 @@ import React from "react";
 import { motion, Variants } from "framer-motion";
 import Image from "next/image";
 import { LightBarrierStatus } from "@/lib/types";
+import clsx from "clsx";
 
 interface LightBarrierIconProps {
-  status: LightBarrierStatus; // Usa o enum Status
-  isDisconnected?: boolean; // Adiciona o estado desconectado
+  status: LightBarrierStatus;
+  isDisconnected?: boolean;
+  className?: string; // Adicionando className
 }
 
-const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({ status, isDisconnected }) => {
+const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({
+  status,
+  isDisconnected,
+  className,
+}) => {
   const isActive = status === LightBarrierStatus.ACTIVE && !isDisconnected;
 
-  const glowColor = isActive ? "#22c55e" : "#ef4444"; // Verde para ACTIVE, Vermelho para INACTIVE
+  const glowColor = isActive ? "#22c55e" : "#ef4444";
 
   const glowVariants: Variants = isDisconnected
     ? {} // Sem animação quando desconectado
@@ -31,9 +37,13 @@ const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({ status, isDisconnec
 
   return (
     <motion.div
-      className="relative flex items-center justify-center overflow-visible bg-transparent rounded-full w-16 h-16"
+      className={clsx(
+        "relative flex items-center justify-center overflow-visible bg-transparent rounded-full",
+        className || "", // Classes personalizadas externas
+        "w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 lg:w-8 lg:h-8 xl:w-10 xl:h-10 2xl:w-12 2xl:h-12" // Tamanhos responsivos
+      )}
       variants={glowVariants}
-      animate={!isDisconnected ? "animate" : undefined} // Apenas anima se não estiver desconectado
+      animate={!isDisconnected ? "animate" : undefined}
     >
       <Image
         src="/LBicon.svg"
@@ -48,6 +58,5 @@ const LightBarrierIcon: React.FC<LightBarrierIconProps> = ({ status, isDisconnec
     </motion.div>
   );
 };
-
 
 export default LightBarrierIcon;

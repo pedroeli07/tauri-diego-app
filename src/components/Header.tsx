@@ -1,4 +1,4 @@
-//src/components/Header.tsx
+// src/components/Header.tsx
 import React from "react";
 import Image from "next/image";
 import { Minus, Maximize, X } from "lucide-react";
@@ -29,44 +29,45 @@ const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <div 
-    data-tauri-drag-region
-    className="flex items-center justify-between bg-gradient-radial from-[#0a0a0a] via-[#161515e8] to-[#0c0c0c] select-none h-12">
+      data-tauri-drag-region
+      className="flex items-center justify-between bg-gradient-radial from-[#0a0a0a] via-[#161515e8] to-[#0c0c0c] select-none h-12 px-2 lg:px-4">
+      
       {/* Logo e Área de Título com Área de Arrasto */}
-      <div className="flex items-center px-4 py-2">
+      <div className="flex items-center">
         <Image
           src="/DcubeD_white.svg"
           alt="DCUBED Logo"
-          width={40}
-          height={40}
-          className="mr-2"
+          width={30} // Reduzido para telas menores
+          height={30} // Reduzido para telas menores
+          className="mr-2 lg:mr-4"
         />
-        <span className="text-white font-bold tracking-widest text-lg">
+        <span className="lg:inline text-white font-bold tracking-widest text-lg">
           DCubed - ISM Controller
         </span>
       </div>
 
       {/* Botões de Controle da Janela */}
-      <div className="flex items-center space-x-2 px-4 py-2">
+      <div className="flex items-center space-x-1 lg:space-x-2">
         <button
           onClick={onMinimize}
-          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
+          className="p-1 lg:p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
           aria-label="Minimize"
         >
-          <Minus size={22} /> {/* Aumento do tamanho do ícone */}
+          <Minus size={18}  /> {/* Ajuste de tamanho */}
         </button>
         <button
           onClick={onMaximize}
-          className="p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
+          className="p-1 lg:p-2 text-gray-500 hover:text-gray-300 focus:outline-none cursor-pointer"
           aria-label="Maximize"
         >
-          <Maximize size={22} /> {/* Aumento do tamanho do ícone */}
+          <Maximize size={18}  /> {/* Ajuste de tamanho */}
         </button>
         <button
           onClick={() => setIsCloseModalOpen(true)}
-          className="p-2 text-gray-500 hover:text-red-500 focus:outline-none cursor-pointer"
+          className="p-1 lg:p-2 text-gray-500 hover:text-red-500 focus:outline-none cursor-pointer"
           aria-label="Close"
         >
-          <X size={22} /> {/* Aumento do tamanho do ícone */}
+          <X size={18}  /> {/* Ajuste de tamanho */}
         </button>
       </div>
 

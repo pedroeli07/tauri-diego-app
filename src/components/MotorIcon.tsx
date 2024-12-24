@@ -7,7 +7,13 @@ interface MotorIconProps {
 }
 
 const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
-  const rotationDuration = status === "ON" ? Math.max(2, 10 - speed / 500) : 0;
+  // Definir se o ícone deve girar: apenas se o status for "ON" e speed > 0
+  const shouldRotate = status === "ON" && speed > 0;
+
+  // Calcular a duração da rotação usando uma escala não linear para maior sensibilidade em baixas velocidades
+  const rotationDuration = shouldRotate
+    ? Math.max(2, 12 - 10 * Math.sqrt(speed / 5000))
+    : 0; // Se não deve girar, duração é 0
 
   return (
     <div
@@ -16,12 +22,12 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
         height: "70px",
         position: "relative",
         display: "inline-block",
-        animation:
-          status === "ON"
-            ? `spin ${rotationDuration}s linear infinite ${direction === "CCW" ? "reverse" : "normal"}`
-            : "none",
+        animation: shouldRotate
+          ? `spin ${rotationDuration}s linear infinite ${direction === "CCW" ? "reverse" : "normal"}`
+          : "none", // Aplica animação apenas se shouldRotate for true
         filter: status === "ON" ? "none" : "grayscale(100%) brightness(0.5)",
         opacity: status === "ON" ? 1 : 0.6,
+        transition: "transform 0.5s ease, filter 0.3s, opacity 0.3s",
       }}
     >
       {/* SVG do motor */}
@@ -32,11 +38,10 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
         height="100%"
         style={{
           fill: status === "ON" ? "#5DA9E9" : "#666",
-          transition: "fill 0.3s, filter 0.3s, opacity 0.3s",
+          transition: "fill 0.3s",
         }}
       >
-        <g transform="translate(0.000000,763.000000) scale(0.100000,-0.100000)" stroke="none"
-        >
+        <g transform="translate(0.000000,763.000000) scale(0.100000,-0.100000)" stroke="none">
           <path d="M4785 7604 c-139 -36 -237 -113 -297 -233 l-33 -66 -3 -967 -2 -968
           -248 0 c-277 0 -322 -7 -396 -61 -52 -36 -99 -104 -115 -164 -6 -23 -11 -131
           -11 -252 l0 -213 -555 0 c-536 0 -556 -1 -610 -21 -85 -32 -158 -97 -197 -176

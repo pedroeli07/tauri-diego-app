@@ -58,7 +58,7 @@ const CustomSlider: React.FC<CustomSliderProps> = ({
         <span
           className="absolute h-5 w-5 bg-blue-500 rounded-full shadow-md"
           style={{
-            boxShadow: "0 0 10px 3px ##5DA9E9",
+            boxShadow: "0 0 10px 3px #5DA9E9",
           }}
         />
       </Slider>

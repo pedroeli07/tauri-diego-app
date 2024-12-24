@@ -75,22 +75,37 @@ export function utilDeleteLog(logs: Log[], index: number): Log[] {
  * @param type - Tipo do log: "error" | "success" | "info" | "warning".
  * @returns Novo array de logs com a mensagem adicionada.
  */
+/**
+ * Retorna uma nova lista de logs com a mensagem formatada localmente.
+ * @param logs - Lista atual de logs.
+ * @param message - Mensagem enviada do backend.
+ * @param type - Tipo de log: "error" | "success" | "info" | "warning".
+ */
+/**
+ * Retorna uma nova lista de logs com a mensagem formatada localmente.
+ * @param logs - Lista atual de logs.
+ * @param message - Mensagem enviada do backend.
+ * @param type - Tipo de log: "error" | "success" | "info" | "warning".
+ */
 export const utilAddLog = (
   logs: Log[],
   message: string,
   type: "error" | "success" | "info" | "warning" = "info"
 ): Log[] => {
   const logColor = getLogColor(type);
+  const timestamp = new Date().toLocaleString(); // Data e horário local
   return [
-    ...logs,
     {
-      message: `[${new Date().toLocaleTimeString()}] ${message}`,
+      message: `[${timestamp}] [${type.toUpperCase()}] ${message}`, // Inclui tipo no log
       type,
       color: logColor,
-      timestamp: new Date().toISOString(), // Adicionando timestamp
+      timestamp: new Date().toISOString(), // Mantém o timestamp ISO para filtros
     },
+    ...logs, // Coloca os logs antigos abaixo do novo log
   ];
 };
+
+
 
 export const getLogColor = (type: "error" | "success" | "info" | "warning") => ({
   error: "text-red-500",   // Aplicando a cor do texto como vermelho
@@ -102,9 +117,9 @@ export const getLogColor = (type: "error" | "success" | "info" | "warning") => (
 
 
 export const initialMotors: Motor[] = [
-  { id: 1, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
   { id: 2, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
   { id: 3, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
+  { id: 4, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
 ];
 
 // Estado Inicial das Light Barriers

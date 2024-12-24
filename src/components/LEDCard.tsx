@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import clsx from "clsx";
 import { Button } from "./ui/button"; // Replace with your button component
-import CustomSlider from "./ui/custom-slider"; // Replace with your slider component
+import CustomSlider from "./ui/custom-slider2"; // Replace with your slider component
 import LEDIcon from "./LEDIcon"; // Updated LEDIcon component
 import { Power, PowerOff } from 'lucide-react';
 import CustomTooltip from './CustomTooltip';

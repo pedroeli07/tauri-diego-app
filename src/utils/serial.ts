@@ -115,11 +115,6 @@ function logDetailedBinaryMessage(data: number[], addLog: (message: string, type
         value === 0 ? "CW" : "CCW"
       }`;
       break;
-    case 10:
-      description = `SOME_OTHER_COMMAND -> ID: ${hardwareId}, VALUE: ${
-        value === 1 ? "ACTIVE" : "INACTIVE"
-      }`;
-      break;
     case 20:
       description = `TOGGLE_LIGHT_BARRIER -> ID: ${hardwareId}, VALUE: ${
         value === 1 ? "ACTIVE" : "INACTIVE"
@@ -135,6 +130,9 @@ function logDetailedBinaryMessage(data: number[], addLog: (message: string, type
 /**
  * Parses the received binary data and logs detailed information.
  */
+
+let pendingUpdates: Record<number, { speed?: number; direction?: "CW" | "CCW" }> = {};
+
 export function parseBinaryResponse(
   data: number[],
   updateLEDStatus: (id: number, status: "ON" | "OFF", intensity?: number) => void,
@@ -158,6 +156,9 @@ export function parseBinaryResponse(
   const hardwareId = data[1];
   const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
 
+  if (!pendingUpdates[hardwareId]) pendingUpdates[hardwareId] = {};
+
+
   switch (commandId) {
     case 7:
       const ledStatus = value === 1 ? "ON" : "OFF";
@@ -170,19 +171,11 @@ export function parseBinaryResponse(
       const motorState = value === 1 ? "ON" : "OFF";
       updateMotorStatus(hardwareId, motorState);
       break;
-    case 2:
-      updateMotorStatus(hardwareId, "ON", value);
+      case 1: // Motor Direction
+      pendingUpdates[hardwareId].direction = value === 0 ? "CW" : "CCW";
       break;
-    case 1:
-      const direction = value === 0 ? "CW" : "CCW";
-      updateMotorStatus(hardwareId, "ON", undefined, direction);
-      break;
-    case 10:
-      // Se 'command_id=10' não está mais sendo usado para Light Barriers, remova este caso
-      // ou ajuste conforme necessário para outra funcionalidade.
-      // Exemplo: Se 'command_id=10' agora é para outra coisa, mapeie corretamente.
-      const someOtherStatus = value === 1 ? "ACTIVE" : "INACTIVE";
-      // Atualize conforme a sua necessidade
+    case 2: // Motor Speed
+      pendingUpdates[hardwareId].speed = value;
       break;
     case 20:
       // Novo caso para Light Barriers
@@ -192,7 +185,19 @@ export function parseBinaryResponse(
     default:
       addLog(`[CMD:${commandId}] Unknown command received.`, "warning");
   }
+   // Consolidar atualizações de direção e velocidade
+   if (pendingUpdates[hardwareId].speed !== undefined && pendingUpdates[hardwareId].direction !== undefined) {
+    const { speed, direction } = pendingUpdates[hardwareId];
+    updateMotorStatus(hardwareId, "ON", speed, direction);
+    addLog(`Motor ${hardwareId} updated to ON with speed ${speed}Hz and direction ${direction}.`, "info");
+
+    // Limpar atualizações pendentes
+    delete pendingUpdates[hardwareId];
+  }
 }
+
+
+
 
 
 

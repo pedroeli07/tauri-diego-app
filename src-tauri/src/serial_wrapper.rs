@@ -36,28 +36,26 @@ struct MessagePayload {
 /// - `message`: the log text.
 /// - `level`: a string indicating the log level, e.g. "INFO", "ERROR", "WARNING", "SUCCESS", etc.
 pub fn backend_log(app: &tauri::AppHandle, message: &str, level: &str) {
-    // 1) Print to the VSCode terminal
-    println!(
-        "[{}] [{}] {}",
-        chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-        level,
-        message
-    );
+    // Log no terminal do backend com timestamp
+    let timestamp = chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+    let detailed_message = format!("[{}] [{}] {}", timestamp, level, message);
+    println!("{}", detailed_message);
 
-    // 2) Emit the same log to the frontend via the "backendLog" event (or any other name)
+    // Emite apenas a mensagem e tipo para o frontend, sem timestamp
     let payload = serde_json::json!({
-        "message": format!("[{}] {}", level, message),
-        "type": level.to_lowercase()
+        "message": message, // Apenas a mensagem
+        "type": level.to_lowercase(), // Tipo do log
     });
 
     if let Err(err) = app.emit_all("backendLog", payload) {
         println!(
             "[{}] [WARNING] Failed to emit log to the frontend: {:?}",
-            chrono::Local::now().format("%Y-%m-%d %H:%M:%S"),
-            err
+            timestamp, err
         );
     }
 }
+
+
 
 /// Function to list available serial ports and return them as a vector of strings.
 pub fn list_ports(app: tauri::AppHandle) -> Vec<String> {
@@ -117,7 +115,7 @@ pub fn init_port(
             if let Err(e) = app.emit_all("backendLog", {
                 serde_json::json!({
                     "message": format!("Port '{}' opened successfully with baud rate {}", port_path_clone, baud_rate),
-                    "type": "success",
+                    "type": "SUCCESS",
                 })
             }) {
                 println!(
@@ -168,39 +166,61 @@ pub fn start_clone_thread(
 
     thread::spawn(move || {
         is_thread_open.store(true, Ordering::Relaxed);
-        backend_log(&app, "Serial communication thread started.", "info");
+        backend_log(&app, "Serial communication thread started.", "INFO");
 
         while is_thread_open.load(Ordering::Relaxed) {
             let mut byte = [0u8; 1];
             match port_clone.read(&mut byte) {
                 Ok(_) => {
                     // Log cada byte recebido
-                    backend_log(&app, &format!("Received 1 byte: {:?}", byte[0]), "info");
+                    backend_log(&app, &format!("Received 1 byte: {:?}", byte[0]), "INFO");
 
                     // Adiciona byte ao buffer
                     serial_buf.push(byte[0]);
 
                     // Verifica se o buffer contém 7 bytes (mensagem completa)
                     if serial_buf.len() == 7 {
-                        // Emite a mensagem completa para o frontend
+                        let command_id = serial_buf[0];
+                        let hardware_id = serial_buf[1];
+                        let value = (serial_buf[2] as u32)
+                            | ((serial_buf[3] as u32) << 8)
+                            | ((serial_buf[4] as u32) << 16)
+                            | ((serial_buf[5] as u32) << 24);
+                    
                         backend_log(
                             &app,
-                            &format!("Received complete message: {:?}", serial_buf),
-                            "success"
+                            &format!(
+                                "Received complete message: {:?} (Hex: {})",
+                                serial_buf,
+                                serial_buf.iter()
+                                    .map(|b| format!("{:02X}", b))
+                                    .collect::<Vec<_>>()
+                                    .join(" ")
+                            ),
+                            "SUCCESS"
+                        );
+
+                        backend_log(
+                            &app,
+                            &format!(
+                                "Parsed Message -> COMMAND_ID: {}, HARDWARE_ID: {}, VALUE: {}",
+                                command_id, hardware_id, value
+                            ),
+                            "INFO"
                         );
 
                         // Envia os dados completos para o frontend
-                        if let Err(e) = app.emit_all("updateSerial", BinaryPayload { data: serial_buf.clone() }) {
-                            backend_log(
-                                &app,
-                                &format!("Failed to emit message to frontend: {:?}", e),
-                                "error"
-                            );
-                        }
+                            if let Err(e) = app.emit_all("updateSerial", BinaryPayload { data: serial_buf.clone() }) {
+                                backend_log(
+                                    &app,
+                                    &format!("Failed to emit message to frontend: {:?}", e),
+                                    "error"
+                                );
+                            }
 
-                        // Limpa o buffer para a próxima mensagem
-                        serial_buf.clear();
-                    }
+                            // Limpa o buffer para a próxima mensagem
+                            serial_buf.clear();
+                        }
                 }
                 //backend_log(&app, "Read timed out.", "warning");
                 Err(ref e) if e.kind() == io::ErrorKind::TimedOut => {
@@ -213,7 +233,7 @@ pub fn start_clone_thread(
             }
         }
 
-        backend_log(&app, "Serial communication thread terminated.", "info");
+        backend_log(&app, "Serial communication thread terminated.", "INFO");
     });
 }
 

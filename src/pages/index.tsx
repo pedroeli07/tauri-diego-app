@@ -50,7 +50,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import clsx from "clsx"; // Utility for conditional classNames
 
 import DebugBox from '@/components/DebugBox';
-import { handleMotorToggleHandler, handleMotorUpdateHandler } from "@/utils/handlers";
+import { handleMotorDirectionUpdate, handleMotorSpeedUpdate, handleMotorToggleHandler, handleMotorUpdateHandler } from "@/utils/handlers";
 import Header from '../components/Header';
 import LEDCard from "@/components/LEDCard";
 import { appWindow as TauriAppWindow } from "@tauri-apps/api/window";
@@ -65,6 +65,12 @@ import LightBarrierCard from "@/components/LightBarrierCard";
 import { saveAs } from 'file-saver';
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
+
+
+export enum CommandIDs {
+  RESET = 9,
+  PRODUCTION_MODE = 10,
+}
 
 /**
  * Exporta logs no formato PDF de forma simplificada.
@@ -295,7 +301,6 @@ const [tempIntensities, setTempIntensities] = useState<number[]>(() =>
 
 const [isConnecting, setIsConnecting] = useState<boolean>(false); // Estado para carregamento
 
-
   //const [tempIntensity, setTempIntensity] = useState<number>(0);
 
   useEffect(() => {
@@ -357,6 +362,7 @@ const updateMotorStatusFunction = (
   speed?: number,
   direction?: "CW" | "CCW"
 ) => {
+  // Atualiza o estado dos motores
   setMotors(prevMotors =>
     prevMotors.map(motor =>
       motor.id === id
@@ -370,10 +376,11 @@ const updateMotorStatusFunction = (
     )
   );
 
+  // Adiciona um log detalhado consolidado
   handleAddLog(
     `Motor ${id} updated to ${status}${
       speed !== undefined ? ` with speed ${speed}Hz` : ""
-    }${direction !== undefined ? ` and direction ${direction}` : ""}`,
+    }${direction !== undefined ? ` and direction ${direction}` : ""}.`,
     "info"
   );
 };
@@ -455,23 +462,30 @@ const updateMotorStatusFunction = (
 
 
   useEffect(() => {
-    // Listen for the "backendLog" event emitted by your Rust backend
-    const unlisten = listen<any>("backendLog", (event) => {
-      // event.payload should match the JSON you sent in `backend_log`
-      // e.g. { message: "[INFO] Something happened...", type: "info" }
-      const { message, type } = event.payload;
+    let isMounted = true;
   
-      // Pass that message to your existing logging function
-      // `type` can be "info", "error", "warning", or "success"
-      // If your type doesn't match exactly, handle or map it accordingly
-      handleAddLog(message, type ?? "info");
-    });
+    // Configura o listener
+    const setupListener = async () => {
+      const unlisten = await listen<any>("backendLog", (event) => {
+        if (isMounted) {
+          const { message, type } = event.payload;
+          handleAddLog(message, type ?? "info");
+        }
+      });
+  
+      // Retorna a função de cleanup
+      return () => unlisten();
+    };
+  
+    // Chama a função setupListener
+    setupListener().catch(console.error);
   
     return () => {
-      // Cleanup the listener on unmount
-      unlisten.then((fn) => fn()).catch(console.error);
+      isMounted = false;
     };
   }, [handleAddLog]);
+  
+  
 
   /**
    * Fetches the available serial ports and updates the state.
@@ -539,7 +553,7 @@ const updateMotorStatusFunction = (
  */
 const sendProductionMode = async () => {
   try {
-    const command = formatCommand(0x02, 0x00, 1); // Command for Production Mode
+    const command = formatCommand(CommandIDs.PRODUCTION_MODE, 0x00, 1); // Command for Production Mode
     const success = await sendFormattedCommand(command, handleAddLog);
 
     if (success) {
@@ -556,9 +570,12 @@ const sendProductionMode = async () => {
   }
 };
 
+/**
+ * Desativa o modo de produção.
+ */
 const disableProductionMode = async () => {
   try {
-    const command = formatCommand(0x02, 0x00, 0); // Comando para desativar Production Mode
+    const command = formatCommand(CommandIDs.PRODUCTION_MODE, 0x00, 0); // Comando para desativar Production Mode
     const success = await sendFormattedCommand(command, handleAddLog);
 
     if (success) {
@@ -576,15 +593,12 @@ const disableProductionMode = async () => {
 };
 
 /**
- * Envia o comando de reset.
- */
-/**
  * Envia o comando de reset e redefine os estados no frontend.
  */
 const sendReset = async () => {
   try {
     // Comando de reset
-    const command = formatCommand(0x01, 0x00, 0); // Command for Reset
+    const command = formatCommand(CommandIDs.RESET, 0x00, 0); // Command for Reset
     const success = await sendFormattedCommand(command, handleAddLog);
 
     if (success) {
@@ -593,7 +607,7 @@ const sendReset = async () => {
 
       // Desativa o modo de produção, se estiver ativo
       if (isProductionMode) {
-        disableProductionMode();
+        await disableProductionMode(); // Certifique-se de aguardar a conclusão
         handleAddLog("Production mode deactivated.", "info");
         toast.info("Production mode deactivated.");
       }
@@ -658,7 +672,6 @@ const updateLightBarrierStatus = (id: number, status: LightBarrierStatus) => {
   const logMessage = `Light Barrier ${id} updated to ${status}.`;
   handleAddLog(logMessage, "info");
 };
-
 
 
  /**
@@ -847,6 +860,16 @@ const renderSelects = (selects: typeof selectConfigs, additionalClasses = "w-48"
   ));
 };
 
+function updateMotor(id: number, speed: number, direction: "CW" | "CCW") {
+  const motor = motors.find((m) => m.id === id);
+
+  if (!motor) return;
+
+  // Sempre enviar ambos os comandos, independentemente das mudanças
+  handleMotorDirectionUpdate(id, direction, motors, updateMotorStatusFunction, handleAddLog);
+  handleMotorSpeedUpdate(id, speed, motors, updateMotorStatusFunction, handleAddLog);
+}
+
 
 return (
 <main className="relative h-screen w-screen bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a]">
@@ -903,13 +926,13 @@ return (
     <div className="flex justify-center items-start mt-8">
       {/* Adiciona margem superior para descer a Light Barrier */}
       <LightBarrierCard
-        lightBarriers={lightBarriers} // Array inicial
-        isConnected={isConnected}
-        handleLightBarrierUpdate={(id, status) => {
-          console.log(`Light Barrier ${id} updated to ${status}`);
-          updateLightBarrierStatus(id, status); // Chamada correta da função
-        }}
-      />
+  lightBarriers={lightBarriers}
+  isConnected={isConnected}
+  handleLightBarrierUpdate={(id, status) => {
+    updateLightBarrierStatus(id, status); // Atualiza o estado da light barrier
+  }}
+/>
+
     </div>
 
     {/* Coluna Direita */}
@@ -976,29 +999,23 @@ return (
 
       {/* Motors Control Section */}
       <MotorCard
-        motors={motors}
-        isConnected={isConnected}
-        isRecording={isRecording}
-        handleMotorToggle={(id) =>
-          handleMotorToggleHandler(
-            id,
-            motors,
-            updateMotorStatusFunction,
-            handleAddLog
-          )
-        }
-        handleMotorSet={(id, speed, direction) =>
-          handleMotorUpdateHandler(
-            id,
-            speed,
-            direction,
-            motors,
-            updateMotorStatusFunction,
-            handleAddLog
-          )
-        }
-        isProductionMode={isProductionMode}
-      />
+  motors={motors}
+  isConnected={isConnected}
+  isRecording={isRecording}
+  handleMotorToggle={(id) =>
+    handleMotorToggleHandler(
+      id,
+      motors,
+      updateMotorStatusFunction,
+      handleAddLog
+    )
+  }
+  handleMotorSet={(id, speed, direction) =>
+    updateMotor(id, speed, direction) // Sempre envia os comandos
+  }
+  isProductionMode={isProductionMode}
+/>
+
 
       {/* Debug Box Section */}
       <DebugBox

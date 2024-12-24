@@ -34,13 +34,13 @@ const LightBarrierCard: React.FC<LightBarrierCardProps> = ({
   }, [isConnected]);
 
   return (
-    <div className="bg-transparent border-none">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full mt-5">
+    <div className="bg-transparent border-none w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full mt-5">
         {lightBarriers.map((lb) => (
           <div
             key={lb.id}
             className={clsx(
-              "flex flex-col items-center justify-center rounded-lg border-2 px-6 py-6 shadow-md w-full h-36",
+              "flex flex-col items-center justify-center rounded-lg border-2 px-4 py-4 shadow-md w-full h-28 xl:h-36",
               lb.status === LightBarrierStatus.ACTIVE
                 ? "border-green-500"
                 : "border-red-500"
@@ -49,7 +49,7 @@ const LightBarrierCard: React.FC<LightBarrierCardProps> = ({
             {/* ID */}
             <span
               className={clsx(
-                "text-sm font-bold mb-2",
+                "text-xs sm:text-sm xl:text-base font-bold mb-1 xl:mb-2",
                 lb.status === LightBarrierStatus.ACTIVE
                   ? "text-green-400"
                   : "text-red-400"
@@ -58,13 +58,18 @@ const LightBarrierCard: React.FC<LightBarrierCardProps> = ({
               LB {lb.id}
             </span>
 
-            {/* Ícone */}
-            <LightBarrierIcon status={lb.status} />
+            {/* Ícone: Removido em telas menores que xl */}
+            <div className="hidden xl:block">
+              <LightBarrierIcon
+                status={lb.status}
+                className="w-12 h-12 sm:w-16 sm:h-16"
+              />
+            </div>
 
             {/* Status */}
             <span
               className={clsx(
-                "mt-2 text-sm font-bold",
+                "mt-1 xl:mt-2 text-xs  xl:text-sm font-bold",
                 lb.status === LightBarrierStatus.ACTIVE
                   ? "text-green-400"
                   : "text-red-400"
@@ -74,7 +79,9 @@ const LightBarrierCard: React.FC<LightBarrierCardProps> = ({
             </span>
 
             {/* Última mudança */}
-            <span className="text-gray-500 text-xs">{lb.lastChanged}</span>
+            <span className="text-gray-500 text-xs  xl:text-sm">
+              {lb.lastChanged}
+            </span>
           </div>
         ))}
       </div>

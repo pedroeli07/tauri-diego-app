@@ -125,7 +125,7 @@ fn handle_serial_connect(app: tauri::AppHandle) -> Result<bool, String> {
                     let is_thread_open_ref = state_guard.is_thread_open.clone();
                     serial_wrapper::start_clone_thread(app_clone.clone(), port_clone, is_thread_open_ref);
 
-                    backend_log(&app, "Serial port connected successfully.", "SUCCESS");
+                    backend_log(&app, "Serial port connected successfuly.", "SUCCESS");
                     Ok(true)
                 }
                 Err(e) => {
@@ -219,7 +219,7 @@ fn handle_start_record(app: tauri::AppHandle) -> bool {
                                     path_clone
                                 );
                                 println!("finish start clone"); // Log the action.
-                                return true; // Indicate successful start of recording.
+                                return true; // Indicate SUCESSful start of recording.
                             }
                             Err(e) => {
                                 // If file creation fails, reset the recording flag.
@@ -334,33 +334,62 @@ fn send_serial(app: tauri::AppHandle, state: State<AppData>, input: Vec<u8>) {
             backend_log(
                 &app,
                 &format!("Preparing to send message: {:?}", input),
-                "info",
+                "INFO",
             );
 
             match port.write(&input) {
                 Ok(bytes_written) => {
+                    // Log básico de bytes enviados
                     backend_log(
                         &app,
                         &format!("Sent {} bytes.", bytes_written),
-                        "success",
+                        "SUCCESS",
                     );
+
+                    // Log detalhado do conteúdo da mensagem
+                    let hex_content = input
+                        .iter()
+                        .map(|b| format!("{:02X}", b))
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    backend_log(
+                        &app,
+                        &format!("Message content (hex): {}", hex_content),
+                        "SUCCESS",
+                    );
+
+                    // Decodificar os valores
+                    let command_id = input.get(0).copied().unwrap_or_default();
+                    let hardware_id = input.get(1).copied().unwrap_or_default();
+                    let value = (input.get(2).copied().unwrap_or_default() as u32)
+                        | ((input.get(3).copied().unwrap_or_default() as u32) << 8)
+                        | ((input.get(4).copied().unwrap_or_default() as u32) << 16)
+                        | ((input.get(5).copied().unwrap_or_default() as u32) << 24);
+
                     backend_log(
                         &app,
                         &format!(
-                            "Message content (hex): {}",
-                            input.iter()
-                                .map(|b| format!("{:02X}", b))
-                                .collect::<Vec<_>>()
-                                .join(" "),
+                            "Parsed Sent Message -> COMMAND_ID: {}, HARDWARE_ID: {}, VALUE: {}",
+                            command_id, hardware_id, value
                         ),
-                        "success",
+                        "INFO"
+                    );
+
+                    // Log adicional para debugging
+                    backend_log(
+                        &app,
+                        &format!(
+                            "Message details -> Decimal: {:?}, Hex: {}",
+                            input, hex_content
+                        ),
+                        "DEBUG"
                     );
                 }
                 Err(e) => {
                     backend_log(
                         &app,
                         &format!("Failed to send message: {:?}", e),
-                        "error",
+                        "ERROR",
                     );
                     rfd::MessageDialog::new()
                         .set_level(rfd::MessageLevel::Error)
@@ -375,7 +404,7 @@ fn send_serial(app: tauri::AppHandle, state: State<AppData>, input: Vec<u8>) {
             backend_log(
                 &app,
                 "Attempted to send message without an active port connection.",
-                "error",
+                "ERROR",
             );
 
             rfd::MessageDialog::new()

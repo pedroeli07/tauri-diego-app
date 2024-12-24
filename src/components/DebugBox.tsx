@@ -1,5 +1,5 @@
 // src/components/DebugBox.tsx
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 
 import { Trash2, Copy, Download } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,40 +49,45 @@ const DebugBox: React.FC<DebugBoxProps> = ({
   const startDateTs = getTimestamp(dateRange.start);
   const endDateTs = getTimestamp(dateRange.end);
 
+
+    // Remover logs duplicados ao carregar
+    useEffect(() => {
+      const uniqueLogs = logs.filter(
+        (log, index, self) =>
+          index === self.findIndex((l) => l.message === log.message && l.type === log.type)
+      );
+      if (uniqueLogs.length !== logs.length) {
+        setLogs(uniqueLogs);
+      }
+    }, [logs, setLogs]);
+
   // Para o time range, consideramos apenas a comparação de horário. Uma forma simples é normalizar a data:
-  const toTimeOnlyTs = (date:Date|null) => {
-    if(!date) return null;
-    return date.getHours()*3600 + date.getMinutes()*60 + date.getSeconds();
+  const toTimeOnlyTs = (date: Date | null) => {
+    if (!date) return null;
+    return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
   };
   const startTimeTs = toTimeOnlyTs(timeRange.start);
   const endTimeTs = toTimeOnlyTs(timeRange.end);
 
-  /**
-   * Filtra os logs com base nos filtros selecionados.
-   */
   const filteredLogs = useMemo(() => {
     return logs.filter((log) => {
       const logDate = new Date(log.timestamp);
       if (isNaN(logDate.getTime())) return false;
       const logTs = logDate.getTime();
 
-      // Filtro por tipo
       if (selectedLogType !== "All" && log.type !== selectedLogType.toLowerCase()) {
         return false;
       }
 
-      // Filtro por termo de pesquisa
       if (searchTerm && !log.message.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
 
-      // Filtro por intervalo de datas
       if (startDateTs && logTs < startDateTs) return false;
       if (endDateTs && logTs > endDateTs) return false;
 
-      // Filtro por intervalo de tempo
-      // Normalizamos o horário do log:
-      const logTimeTs = logDate.getHours()*3600 + logDate.getMinutes()*60 + logDate.getSeconds();
+      const logTimeTs =
+        logDate.getHours() * 3600 + logDate.getMinutes() * 60 + logDate.getSeconds();
       if (startTimeTs !== null && logTimeTs < startTimeTs) return false;
       if (endTimeTs !== null && logTimeTs > endTimeTs) return false;
 
@@ -90,29 +95,30 @@ const DebugBox: React.FC<DebugBoxProps> = ({
     });
   }, [logs, selectedLogType, searchTerm, startDateTs, endDateTs, startTimeTs, endTimeTs]);
 
-  /**
-   * Evita logs duplicados consecutivos.
-   */
-  const prevAddLog = handleAddLog;
-  const addUniqueLog = (message: string, type: Log["type"]) => {
-    if (logs.length > 0 && logs[0].message === message && logs[0].type === type) {
-      return;
-    }
-    // Adiciona no início do array
-    setLogs((prevLogs) => [{ message, type, timestamp: new Date().toISOString() }, ...prevLogs]);
-  };
+  const addUniqueLog = useCallback(
+    (message: string, type: Log["type"]) => {
+      if (logs.length > 0 && logs[0].message === message && logs[0].type === type) {
+        return;
+      }
+      setLogs((prevLogs) => [
+        { message, type, timestamp: new Date().toISOString() },
+        ...prevLogs,
+      ]);
+    },
+    [logs, setLogs]
+  );
 
   const clearFilters = () => {
     setSelectedLogType("All");
     setSearchTerm("");
-    setDateRange({start:null,end:null});
-    setTimeRange({start:null,end:null});
+    setDateRange({ start: null, end: null });
+    setTimeRange({ start: null, end: null });
   };
 
   return (
     <div className="absolute top-0 right-4 flex flex-col w-[32%] h-full max-h-[750px] mt-48">
       {/* Debug Box */}
-      <Card className="w-full h-full bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a] rounded-lg border-double border-4  border-gray-900 shadow-lg p-4 text-gray-300 flex flex-col">
+      <Card className="w-full h-full bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#0a0a0a] rounded-lg border-double border-4  border-gray-900 shadow-lg p-4 text-gray-300 flex flex-col">
         <CardContent className="p-4 flex-1 flex flex-col overflow-hidden">
         {/* Header com Botões de Controle */}
         <div className="flex justify-between items-center mb-4">
@@ -120,41 +126,43 @@ const DebugBox: React.FC<DebugBoxProps> = ({
   <div className="flex space-x-3">
     {/* Botão Limpar Logs */}
     <button
-      onClick={() => {
-        setLogs([]);
-        addUniqueLog("Logs cleared.", "info");
-        toast.success("Logs have been cleared.");
-      }}
-      className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300  rounded-md flex items-center shadow-md hover:shadow-red-400 hover:bg-red-600 transition-all duration-300"
-      title="Clear all logs"
-      aria-label="Clear logs"
-    >
-      <Trash2 className="w-5 h-5 text-red-400" />
-      <span className="ml-2">Clear</span>
-    </button>
-    {/* Botão Copiar Logs */}
-    <button
-      onClick={() => {
-        copyLogs(filteredLogs);
-        toast.success("Logs copied to clipboard.");
-      }}
-      className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300 rounded-md flex items-center shadow-md hover:shadow-blue-400 hover:bg-blue-600 transition-all duration-300"
-      title="Copy filtered logs"
-      aria-label="Copy logs"
-    >
-      <Copy className="w-5 h-5 text-blue-400" />
-      <span className="ml-2">Copy</span>
-    </button>
-    {/* Botão Abrir Modal de Exportação */}
-    <button
-      onClick={() => setIsExportModalOpen(true)}
-      className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300 rounded-md flex items-center shadow-md hover:shadow-green-400 hover:bg-green-600 transition-all duration-300"
-      title="Export logs"
-      aria-label="Export logs"
-    >
-      <Download className="w-5 h-5 text-green-400" />
-      <span className="ml-2">Download</span>
-    </button>
+    onClick={() => {
+      setLogs([]);
+      addUniqueLog("Logs cleared.", "info");
+      toast.success("Logs have been cleared.");
+    }}
+    className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300 rounded-md flex items-center shadow-md hover:shadow-red-400 hover:bg-red-600 transition-all duration-300"
+    title="Clear all logs"
+    aria-label="Clear logs"
+  >
+    <Trash2 className="w-5 h-5 text-red-400" />
+    <span className="hidden 2xl:inline ml-2  text-xs lg:text-sm">Clear</span>
+  </button>
+
+  {/* Botão Copiar Logs */}
+  <button
+    onClick={() => {
+      copyLogs(filteredLogs);
+      toast.success("Logs copied to clipboard.");
+    }}
+    className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300 rounded-md flex items-center shadow-md hover:shadow-blue-400 hover:bg-blue-600 transition-all duration-300"
+    title="Copy filtered logs"
+    aria-label="Copy logs"
+  >
+    <Copy className="w-5 h-5 text-blue-400" />
+    <span className="hidden 2xl:inline ml-2  text-xs lg:text-sm">Copy</span>
+  </button>
+
+  {/* Botão Abrir Modal de Exportação */}
+  <button
+    onClick={() => setIsExportModalOpen(true)}
+    className="p-2 bg-[#0f0f0f] border-2 active:scale-75 border-gray-700 text-gray-300 rounded-md flex items-center shadow-md hover:shadow-green-400 hover:bg-green-600 transition-all duration-300"
+    title="Export logs"
+    aria-label="Export logs"
+  >
+    <Download className="w-5 h-5 text-green-400" />
+    <span className="hidden 2xl:inline ml-2 text-xs lg:text-sm">Download</span>
+  </button>
   </div>
 </div>
 
@@ -220,54 +228,51 @@ const DebugBox: React.FC<DebugBoxProps> = ({
          
 {/* Lista de Logs */}
 <div className="flex-1 overflow-y-auto mt-2 bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a] rounded-lg border-double border custom-scrollbar border-gray-800">
-  {filteredLogs.length === 0 ? (
-    <p className="text-center text-gray-500">No logs available</p>
-  ) : (
-    filteredLogs.slice().reverse().map((log, index) => (
-      <div
-        key={index}
-        className="flex items-center justify-between py-1 px-4 bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a] rounded-md border border-gray-800 transition-all hover:bg-gray-900
-         hover:border-gray-600 hover:bg-gradient-to-b hover:from-[#222222] hover:via-[#1b1b1b] hover:to-[#222222]"
-      >
-        <span className="flex-1 flex items-center space-x-3 text-sm">
-          {/* Indicador de Tipo de Log */}
-          <span
-            className={`w-2 h-2 rounded-full ${
-              log.type === "error"
-                ? "bg-red-400"
-                : log.type === "success"
-                ? "bg-green-400"
-                : log.type === "info"
-                ? "bg-blue-400"
-                : "bg-gray-400"
-            }`}
-          ></span>
-          {/* Mensagem do Log */}
-          <span
-            className={`${
-              log.type === "error"
-                ? "text-red-400"
-                : log.type === "success"
-                ? "text-green-400"
-                : log.type === "info"
-                ? "text-blue-400"
-                : "text-gray-300"
-            }`}
-          >
-            {log.message}
-          </span>
-        </span>
-        {/* Botão para Excluir Log */}
-        <button
-          onClick={() => {
-            setLogs((prevLogs) => prevLogs.filter((_, i) => i !== index));
-          }}
-          className="p-2 rounded-md hover:bg-red-500 hover:text-white transition-all"
-          title="Delete log"
+{filteredLogs.length === 0 ? (
+  <p className="text-center text-gray-500">No logs available</p>
+) : (
+  filteredLogs.map((log, index) => (
+    <div
+      key={index}
+      className="flex items-center justify-between py-1 px-4 bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a] rounded-md border border-gray-800 transition-all hover:bg-gray-900
+       hover:border-gray-600 hover:bg-gradient-to-b hover:from-[#222222] hover:via-[#1b1b1b] hover:to-[#222222]"
+    >
+      <span className="flex-1 flex items-center space-x-3 text-sm">
+        <span
+          className={`w-2 h-2 rounded-full ${
+            log.type === "error"
+              ? "bg-red-400"
+              : log.type === "success"
+              ? "bg-green-400"
+              : log.type === "info"
+              ? "bg-blue-400"
+              : "bg-gray-400"
+          }`}
+        ></span>
+        <span
+          className={`${
+            log.type === "error"
+              ? "text-red-400"
+              : log.type === "success"
+              ? "text-green-400"
+              : log.type === "info"
+              ? "text-blue-400"
+              : "text-gray-300"
+          }`}
         >
-          <Trash2 className="w-4 h-4 text-gray-300" />
-        </button>
-      </div>
+          {log.message}
+        </span>
+      </span>
+      <button
+        onClick={() => {
+          setLogs((prevLogs) => prevLogs.filter((_, i) => i !== index));
+        }}
+        className="p-2 rounded-md hover:bg-red-500 hover:text-white transition-all"
+        title="Delete log"
+      >
+        <Trash2 className="w-4 h-4 text-gray-300" />
+      </button>
+    </div>
     ))
   )}
 </div>
@@ -276,7 +281,7 @@ const DebugBox: React.FC<DebugBoxProps> = ({
 
       {/* Modal de Exportação de Logs */}
       <Dialog open={isExportModalOpen} onOpenChange={setIsExportModalOpen}>
-        <DialogContent className="absolute top-48 right-8 bg-black border border-gray-800 text-white rounded-lg w-[400px] p-4">
+        <DialogContent className="justify-start items-start bg-black border border-gray-800 text-white rounded-lg w-[400px] p-4">
           <DialogHeader>
             <DialogTitle>Export Logs</DialogTitle>
             <DialogDescription>
