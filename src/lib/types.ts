@@ -23,6 +23,41 @@ export interface LED {
   lastChanged: string;
 }
 
+export enum MotorDirection {
+  CW = 1,  // Clockwise
+  CCW = 0, // Counterclockwise
+}
+
+
+export enum CommandIDs {
+  MOTOR_DIRECTION = 1,
+  MOTOR_SPEED = 2,
+  MOTOR_ON_OFF = 3,
+  LED_ON_OFF = 7,
+  LED_INTENSITY = 8,
+  LIGHT_BARRIER_TOGGLE = 20,
+  RESET = 9,
+  PRODUCTION_MODE = 10,
+  STATUS_UPDATE = 30,
+  CONNECTION_ESTABLISHED = 31,
+}
+
+
+export interface SerialPayload {
+  data: number[];
+}
+
+
+// Interface para o status completo da interface
+// Interface para o status completo da interface
+export interface InterfaceStatus {
+  leds: LED[];
+  motors: Motor[];
+  lightBarriers: LightBarrier[];
+}
+
+
+
 /**
  * Tipo para motores.
  */
@@ -34,7 +69,13 @@ export interface Motor {
   lastChanged: string;
 }
 
-
+export interface Motor2 {
+  id: number;
+  status: "ON" | "OFF";
+  speed: number;
+  direction: MotorDirection; // Substituindo as strings pelo enum
+  lastChanged: string;
+}
 
 export interface Log {
   message: string;

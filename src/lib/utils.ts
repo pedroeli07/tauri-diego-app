@@ -1,7 +1,7 @@
 //src/lib/utils
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { LED, LightBarrier, Log, Motor, LightBarrierStatus } from "./types";
+import { LED, LightBarrier, Log, Motor, LightBarrierStatus, Motor2, MotorDirection } from "./types";
 
 
 export function cn(...inputs: ClassValue[]) {
@@ -120,6 +120,13 @@ export const initialMotors: Motor[] = [
   { id: 2, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
   { id: 3, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
   { id: 4, status: "OFF", speed: 0, direction: "CW", lastChanged: "No Info" },
+];
+
+export const initialMotors2: Motor2[] = [
+  { id: 2, status: "OFF", speed: 0, direction: MotorDirection.CW, lastChanged: "No Inf" },
+  { id: 3, status: "OFF", speed: 0, direction: MotorDirection.CW, lastChanged: "No Inf" },
+  { id: 4, status: "OFF", speed: 0, direction: MotorDirection.CW, lastChanged: "No Inf" },
+
 ];
 
 // Estado Inicial das Light Barriers

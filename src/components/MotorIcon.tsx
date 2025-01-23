@@ -15,25 +15,27 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
     ? Math.max(2, 12 - 10 * Math.sqrt(speed / 5000))
     : 0; // Se não deve girar, duração é 0
 
-  return (
-    <div
-      style={{
-        width: "70px",
-        height: "70px",
-        position: "relative",
-        display: "inline-block",
-        animation: shouldRotate
-          ? `spin ${rotationDuration}s linear infinite ${direction === "CCW" ? "reverse" : "normal"}`
-          : "none", // Aplica animação apenas se shouldRotate for true
-        filter: status === "ON" ? "none" : "grayscale(100%) brightness(0.5)",
-        opacity: status === "ON" ? 1 : 0.6,
-        transition: "transform 0.5s ease, filter 0.3s, opacity 0.3s",
-      }}
-    >
+    return (
+      <div
+        style={{
+          width: "70px",
+          height: "70px",
+          position: "relative",
+          display: "inline-block", // Default display style
+          animation: shouldRotate
+            ? `spin ${rotationDuration}s linear infinite ${direction === "CCW" ? "reverse" : "normal"}`
+            : "none", // Apply animation only if shouldRotate is true
+          filter: status === "ON" ? "none" : "grayscale(100%) brightness(0.5)",
+          opacity: status === "ON" ? 1 : 0.6,
+          transition: "transform 0.5s ease, filter 0.3s, opacity 0.3s",
+        }}
+        className="hidden 2xl:block" // Hide the icon by default, show it only on xl screens and above
+      >
       {/* SVG do motor */}
       <svg
         xmlns="http://www.w3.org/2000/svg"
         viewBox="0 0 856 763"
+        className="hidden 2xl:flex"
         width="100%"
         height="100%"
         style={{
@@ -41,6 +43,7 @@ const MotorIcon: React.FC<MotorIconProps> = ({ speed, direction, status }) => {
           transition: "fill 0.3s",
         }}
       >
+       
         <g transform="translate(0.000000,763.000000) scale(0.100000,-0.100000)" stroke="none">
           <path d="M4785 7604 c-139 -36 -237 -113 -297 -233 l-33 -66 -3 -967 -2 -968
           -248 0 c-277 0 -322 -7 -396 -61 -52 -36 -99 -104 -115 -164 -6 -23 -11 -131

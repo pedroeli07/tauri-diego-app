@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { toast } from "@/components/Toast";
 import { addLog } from "@/lib/utils";
- import { LightBarrierStatus } from "@/lib/types";
+ import { CommandIDs, LightBarrierStatus } from "@/lib/types";
  
 /**
  * Updates the status of a Light Barrier in the UI and logs the change.
@@ -50,10 +50,16 @@ export function logCommandDetails(
         value === 0 ? "CW" : "CCW"
       }`;
       break;
-    case 10:
+    case 20:
       description = `TOGGLE_LIGHT_BARRIER -> ID: ${hardwareId}, VALUE: ${
         value === 1 ? "ACTIVE" : "INACTIVE"
       }`;
+      break;
+      case CommandIDs.RESET: // Adicione esta linha
+      description = `RESET_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;
+      break;
+      case CommandIDs.PRODUCTION_MODE: // Adicione esta linha
+      description = `PRODUCTION_MODE_COMMAND  -> ID: ${hardwareId}, VALUE: ${value}`;
       break;
     default:
       description = `UNKNOWN_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;

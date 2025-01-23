@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Button } from "./ui/button";
 import CustomSlider from "./ui/custom-slider";
@@ -21,7 +21,8 @@ interface MotorCardProps {
   isConnected: boolean;
   isRecording: boolean;
   handleMotorToggle: (id: number) => void;
-  handleMotorSet: (id: number, speed: number, direction: "CW" | "CCW") => void;
+  handleMotorSetSpeed: (id: number, speed: number) => void;
+  handleMotorSetDirection: (id: number, direction: "CW" | "CCW") => void;
   isProductionMode: boolean;
 }
 
@@ -30,12 +31,26 @@ const MotorCard: React.FC<MotorCardProps> = ({
   isConnected,
   isRecording,
   handleMotorToggle,
-  handleMotorSet,
+  handleMotorSetSpeed,
+  handleMotorSetDirection,
   isProductionMode,
 }) => {
-  const [tempMotorValues, setTempMotorValues] = useState<
-    Record<number, { speed: number; direction: "CW" | "CCW" }>
-  >({});
+
+  const [tempMotorValues, setTempMotorValues] = useState<Record<
+    number,
+    { speed: number; direction: "CW" | "CCW" }
+  >>({});
+  
+
+  useEffect(() => {
+    // Initialize tempMotorValues with current motor values
+    const initialTempMotorValues = motors.reduce((acc, motor) => {
+      acc[motor.id] = { speed: motor.speed, direction: motor.direction };
+      return acc;
+    }, {} as Record<number, { speed: number; direction: "CW" | "CCW" }>);
+    setTempMotorValues(initialTempMotorValues);
+  }, [motors]);
+
 
   const getStyles = (motor: Motor): React.CSSProperties => {
     const normalizedSpeed = motor.speed / 5000; // Normalize speed (0 to 1)
@@ -54,6 +69,9 @@ const MotorCard: React.FC<MotorCardProps> = ({
     };
   };
 
+
+
+  
   return (
     <div className="space-y-2 px-4 py-4 -mt-8">
       <Card className="bg-transparent border-none">
@@ -68,13 +86,12 @@ const MotorCard: React.FC<MotorCardProps> = ({
                   key={motor.id}
                   style={getStyles(motor)}
                   className={clsx(
-                    "p-2 duration-300 flex flex-col space-y-4 bg-gradient-to-b from-[#0a0a0a] via-[#070707] to-[#000000] rounded-lg border-double border-4 w-full", // Usar w-full para responsividade
+                    "p-2 duration-300 flex flex-col bg-gradient-to-b from-[#0a0a0a] via-[#070707] to-[#000000] rounded-lg border-double border-4 w-full",
                     isRecording && "opacity-50 cursor-not-allowed"
                   )}
                 >
                   {/* Linha Superior */}
                   <div className="flex justify-between items-center">
-                    {/* Título e Status */}
                     <h3
                       className={clsx(
                         "text-lg sm:text-xl font-bold ml-2",
@@ -84,14 +101,10 @@ const MotorCard: React.FC<MotorCardProps> = ({
                       Motor {motor.id}
                     </h3>
 
-                    {/* Textos de Status, Velocidade e Direção */}
-                    <div className="flex items-center space-x-4 sm:space-x-10">
+                    <div className="flex items-center space-x-4 sm:space-x-6">
                       <span
                         style={{
-                          color:
-                            motor.status === "ON"
-                              ? "#5DA9E9"
-                              : "rgba(75, 75, 75, 1)",
+                          color: motor.status === "ON" ? "#5DA9E9" : "rgba(75, 75, 75, 1)",
                           textShadow:
                             motor.status === "ON"
                               ? `0 0 5px rgba(93, 169, 233, 0.7)`
@@ -103,10 +116,7 @@ const MotorCard: React.FC<MotorCardProps> = ({
                       </span>
                       <span
                         style={{
-                          color:
-                            motor.status === "ON"
-                              ? "#5DA9E9"
-                              : "rgba(75, 75, 75, 1)",
+                          color: motor.status === "ON" ? "#5DA9E9" : "rgba(75, 75, 75, 1)",
                           textShadow:
                             motor.status === "ON"
                               ? `0 0 5px rgba(93, 169, 233, 0.7)`
@@ -118,10 +128,7 @@ const MotorCard: React.FC<MotorCardProps> = ({
                       </span>
                       <span
                         style={{
-                          color:
-                            motor.status === "ON"
-                              ? "#5DA9E9"
-                              : "rgba(75, 75, 75, 1)",
+                          color: motor.status === "ON" ? "#5DA9E9" : "rgba(75, 75, 75, 1)",
                           textShadow:
                             motor.status === "ON"
                               ? `0 0 5px rgba(93, 169, 233, 0.7)`
@@ -133,7 +140,6 @@ const MotorCard: React.FC<MotorCardProps> = ({
                       </span>
                     </div>
 
-                    {/* Botão de Ligar/Desligar */}
                     <CustomTooltip
                       content={
                         motor.status === "ON"
@@ -158,119 +164,108 @@ const MotorCard: React.FC<MotorCardProps> = ({
                     </CustomTooltip>
                   </div>
 
-                  {/* Grid Principal */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 items-center gap-2 sm:gap-4">
-  {/* Ícone do Motor (Removido em telas menores) */}
-  <MotorIcon
-    speed={motor.speed}
-    direction={motor.direction}
-    status={motor.status}
-  />
+                  {/* Configurações do Motor */}
+                  <div
+                    className={clsx(
+                      "grid gap-2 sm:gap-4",
+                      "2xl:grid-cols-3 grid-cols-2 items-center"
+                    )}
+                  >
+                    <MotorIcon
+                      speed={motor.speed}
+                      direction={motor.direction}
+                      status={motor.status}
+                    />
 
-  {/* Slider de Velocidade */}
-  <CustomTooltip content="Adjust Speed (Hz)" placement="top">
-    <CustomSlider
-      value={tempSpeed}
-      onChange={(value) =>
-        setTempMotorValues((prev) => ({
-          ...prev,
-          [motor.id]: { ...prev[motor.id], speed: value },
-        }))
-      }
-      min={0}
-      max={5000}
-      step={100}
-      disabled={!isConnected || isProductionMode}
-      className="w-full bg-[#5DA9E9] text-[#5DA9E9]"
-    />
-  </CustomTooltip>
+                  
 
-  {/* Input de Velocidade com texto Hz */}
-  <CustomTooltip content="Set Speed (Hz)" placement="top">
-    <div className="flex items-center space-x-2">
-      <Input
-        type="number"
-        value={tempSpeed}
-        onChange={(e) => {
-          const value = Math.min(
-            5000,
-            Math.max(0, parseInt(e.target.value) || 0)
-          );
-          setTempMotorValues((prev) => ({
-            ...prev,
-            [motor.id]: { ...prev[motor.id], speed: value },
-          }));
-        }}
-        className="w-1/2 text-xs sm:text-sm bg-gray-700 text-white rounded-md appearance-none"
-        min={0}
-        max={5000}
-        step={100}
-        disabled={!isConnected || isProductionMode}
-      />
-      <span className="text-gray-400 text-xs sm:text-sm">Hz</span>
-    </div>
-  </CustomTooltip>
-                  </div>
-
-                  {/* Linha Inferior */}
-                  <div className="flex justify-between items-center">
-                    {/* Switch para Direção */}
-                    <div className="flex items-center space-x-2 sm:space-x-4">
-                      <CustomTooltip content="Toggle Direction">
-                        <Switch
-                          checked={tempDirection === "CW"}
-                          onCheckedChange={(checked) => {
-                            const newDirection = checked ? "CW" : "CCW";
-                            setTempMotorValues((prev) => ({
-                              ...prev,
-                              [motor.id]: {
-                                ...prev[motor.id],
-                                direction: newDirection,
-                              },
-                            }));
-                          }}
-                          className={clsx(
-                            "bg-gray-600 border-2 border-gray-700 hover:bg-blue-500",
-                            "focus:outline-none focus:ring-2 focus:ring-blue-400",
-                            "transition-all duration-300"
-                          )}
-                          aria-label="Direction Toggle"
-                        />
-                      </CustomTooltip>
-                      <span
-                        style={{
-                          color:
-                            motor.status === "ON"
-                              ? "#5DA9E9"
-                              : "rgba(75, 75, 75, 1)",
-                          textShadow:
-                            motor.status === "ON"
-                              ? `0 0 5px rgba(93, 169, 233, 0.7)`
-                              : "none",
-                        }}
-                        className="text-sm sm:text-base font-bold">{tempDirection}</span>
-                    </div>
-
-                    {/* Botão de Atualizar */}
-                    <Button
-                      onClick={() => {
-                        handleMotorSet(motor.id, tempSpeed, tempDirection);
-                        setTempMotorValues((prev) => {
-                          const updatedValues = { ...prev };
-                          delete updatedValues[motor.id];
-                          return updatedValues;
-                        });
-                      }}
-                      disabled={!isConnected || isProductionMode}
+                    <div
                       className={clsx(
-                        "px-2 sm:px-3 py-1 sm:py-2 rounded-md transition-all text-xs sm:text-sm",
-                        motor.status === "ON"
-                          ? "bg-blue-500 hover:bg-blue-600 text-white"
-                          : "bg-gray-500 hover:bg-gray-600 text-gray-300 opacity-75 active:scale-75"
+                        "flex  gap-2 sm:gap-4",
+                        "2xl:flex-row items-center justify-center mr-36"
                       )}
                     >
-                      Update
-                    </Button>
+                      <CustomTooltip content="Set Speed (Hz)" placement="top">
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            value={tempSpeed}
+                            onChange={(e) => {
+                              const value = Math.min(
+                                5000,
+                                Math.max(0, parseInt(e.target.value) || 0)
+                              );
+                              setTempMotorValues((prev) => ({
+                                ...prev,
+                                [motor.id]: { ...prev[motor.id], speed: value },
+                              }));
+                            }}
+                            className="w-[90px] text-xs sm:text-sm bg-gray-700 text-white rounded-md appearance-none"
+                            min={0}
+                            max={5000}
+                            step={100}
+                            disabled={!isConnected || isProductionMode}
+                          />
+                          <span className="text-gray-400 text-xs sm:text-sm ml-4">Hz</span>
+                        </div>
+                      </CustomTooltip>
+
+                      <div className="flex items-center space-x-2">
+                        <CustomTooltip content="Toggle Direction">
+                          <Switch
+                            checked={tempDirection === "CW"}
+                            onCheckedChange={(checked) => {
+                              const newDirection = checked ? "CW" : "CCW";
+                              setTempMotorValues((prev) => ({
+                                ...prev,
+                                [motor.id]: {
+                                  ...prev[motor.id],
+                                  direction: newDirection,
+                                },
+                              }));
+                            }}
+                            className={clsx(
+                              "bg-gray-600 border-2 border-gray-700 hover:bg-blue-500",
+                              "focus:outline-none focus:ring-2 focus:ring-blue-400",
+                              "transition-all duration-300"
+                            )}
+                            aria-label="Direction Toggle"
+                          />
+                        </CustomTooltip>
+                        <span
+                          style={{
+                            color: motor.status === "ON" ? "#5DA9E9" : "rgba(75, 75, 75, 1)",
+                            textShadow:
+                              motor.status === "ON"
+                                ? `0 0 5px rgba(93, 169, 233, 0.7)`
+                                : "none",
+                          }}
+                          className="text-sm sm:text-base font-bold"
+                        >
+                          {tempDirection}
+                        </span>
+                      </div>
+
+                      <Button
+                        onClick={() => {
+                          handleMotorSetSpeed(motor.id, tempSpeed);
+                          handleMotorSetDirection(motor.id, tempDirection);
+                          setTempMotorValues((prev) => ({
+                            ...prev,
+                            [motor.id]: { speed: tempSpeed, direction: tempDirection },
+                          }));
+                        }}
+                        disabled={!isConnected || isProductionMode}
+                        className={clsx(
+                          "px-3 py-2 rounded-md transition-all mt-2 sm:mt-0",
+                          motor.status === "ON"
+                            ? "bg-blue-500 hover:bg-blue-600 text-white"
+                            : "bg-gray-500 hover:bg-gray-600 text-gray-300 opacity-75 active:scale-75"
+                        )}
+                      >
+                        Update
+                      </Button>
+                    </div>
                   </div>
                 </div>
               );

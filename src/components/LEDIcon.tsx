@@ -5,6 +5,8 @@ import React from "react";
 interface LEDIconProps {
   intensity: number; // LED intensity (0 to 100)
   status: "ON" | "OFF"; // LED status
+  className: string; // Additional CSS classes
+
 }
 
 /**
@@ -13,7 +15,7 @@ interface LEDIconProps {
  * @param {{ intensity: number, status: "ON" | "OFF" }} props
  * @returns {React.ReactElement}
  */
-const LEDIcon: React.FC<LEDIconProps> = ({ intensity, status }) => {
+const LEDIcon: React.FC<LEDIconProps> = ({ intensity, status, className }) => {
   /**
    * Function to determine the fill color based on intensity and status.
    */
@@ -39,7 +41,7 @@ const LEDIcon: React.FC<LEDIconProps> = ({ intensity, status }) => {
    * Function to determine the responsive size classes.
    */
   const getSizeClasses = (): string => {
-    return "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24";
+    return "w-16 h-16 sm:w-16 sm:h-16 md:w-24 md:h-24 hidden 2xl:flex";
   };
 
   return (

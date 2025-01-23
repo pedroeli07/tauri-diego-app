@@ -2,7 +2,7 @@
 import { invoke } from "@tauri-apps/api/tauri";
 import { listen } from "@tauri-apps/api/event";
 import { toast } from "@/components/Toast"; // Certifique-se de que o caminho está correto
-import { LightBarrierStatus } from "@/lib/types";
+import { CommandIDs, LightBarrierStatus } from "@/lib/types";
 
 /**
  * Obtém a lista de portas disponíveis e atualiza o estado no frontend.
@@ -200,6 +200,166 @@ export function parseBinaryResponse(
 
 
 
+/**
+ * Formats and logs a detailed explanation of the binary message.
+ * @param data - Binary message array.
+ */
+function logDetailedBinaryUpdateStatusMessage(data: number[], addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void) {
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  let description = "";
+
+  switch (commandId) {
+      case CommandIDs.STATUS_UPDATE:
+          description = `STATUS_UPDATE -> ID: ${hardwareId}, VALUE: ${value}`;
+          break;
+      default:
+          description = `UNKNOWN_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;
+  }
+
+  addLog(`[CMD:${commandId}] [${data.join(", ")}] -> ${description}`, "info");
+}
+
+
+
+export function parseBinaryUpdateStatusResponse(
+  data: number[],
+  updateInterfaceStatus: () => Promise<void>, // Adicionando a função updateInterfaceStatus
+  addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void,
+) {
+  if (data.length < 7) {
+      addLog("Invalid data received (less than 7 bytes).", "error");
+      return;
+  }
+
+  logDetailedBinaryUpdateStatusMessage(data, addLog);
+
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  if (!pendingUpdates[hardwareId]) pendingUpdates[hardwareId] = {};
+
+  switch (commandId) {
+    
+      case CommandIDs.STATUS_UPDATE: // <-- Adicionando o case para RESET
+          addLog("Status update command received. Updating...", "warning");
+          updateInterfaceStatus();
+          break;
+      default:
+          addLog(`[CMD:${commandId}] Unknown command received.`, "warning");
+  }
+}
+
+
+
+/**
+ * Formats and logs a detailed explanation of the binary message.
+ * @param data - Binary message array.
+ */
+function logDetailedBinaryResetMessage(data: number[], addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void) {
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  let description = "";
+
+  switch (commandId) {
+      case CommandIDs.RESET:
+          description = `RESET -> ID: ${hardwareId}, VALUE: ${value}`;
+          break;
+      default:
+          description = `UNKNOWN_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;
+  }
+
+  addLog(`[CMD:${commandId}] [${data.join(", ")}] -> ${description}`, "info");
+}
+
+
+
+/**
+ * Formats and logs a detailed explanation of the binary message.
+ * @param data - Binary message array.
+ */
+function logDetailedBinaryProductionMessage(data: number[], addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void) {
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  let description = "";
+
+  switch (commandId) {
+      case CommandIDs.PRODUCTION_MODE:
+          description = `PRODUCTION_MODE -> ID: ${hardwareId}, VALUE: ${value}`;
+          break;
+      default:
+          description = `UNKNOWN_COMMAND -> ID: ${hardwareId}, VALUE: ${value}`;
+  }
+
+  addLog(`[CMD:${commandId}] [${data.join(", ")}] -> ${description}`, "info");
+}
+
+
+export function parseBinaryResetResponse(
+  data: number[],
+  sendReset: () => Promise<void>, // Adicionando a função sendReset
+  addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void,
+) {
+  if (data.length < 7) {
+      addLog("Invalid data received (less than 7 bytes).", "error");
+      return;
+  }
+
+  logDetailedBinaryResetMessage(data, addLog);
+
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  if (!pendingUpdates[hardwareId]) pendingUpdates[hardwareId] = {};
+
+  switch (commandId) {
+    
+      case CommandIDs.RESET: // <-- Adicionando o case para RESET
+          addLog("Reset command received. Resetting...", "warning");
+          sendReset();
+          break;
+      default:
+          addLog(`[CMD:${commandId}] Unknown command received.`, "warning");
+  }
+}
+
+
+export function parseBinaryProductionResponse(
+  data: number[],
+  sendProductionMode: () => Promise<void>, // Adicionando a função sendProductionMode
+  addLog: (message: string, type?: "error" | "success" | "info" | "warning") => void,
+) {
+  if (data.length < 7) {
+      addLog("Invalid data received (less than 7 bytes).", "error");
+      return;
+  }
+
+  logDetailedBinaryProductionMessage(data, addLog);
+
+  const commandId = data[0];
+  const hardwareId = data[1];
+  const value = data[2] | (data[3] << 8) | (data[4] << 16) | (data[5] << 24);
+
+  if (!pendingUpdates[hardwareId]) pendingUpdates[hardwareId] = {};
+
+  switch (commandId) {
+    
+      case CommandIDs.PRODUCTION_MODE: // <-- Adicionando o case para RESET
+          addLog("Production mode command received. Production mode activated...", "warning");
+          sendProductionMode();
+          break;
+      default:
+          addLog(`[CMD:${commandId}] Unknown command received.`, "warning");
+  }
+}
 
 
 
@@ -455,4 +615,3 @@ export async function sendError(input: string): Promise<void> {
     toast.error("Error sending error command.");
   }
 }
-

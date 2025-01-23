@@ -102,35 +102,27 @@ export async function handleLEDSetIntensityHandler(
 }
 
 
-/**
- * Adjusts the intensity of a specific LED.
- */
-/**
- * Adjusts the intensity of a specific LED without changing its current state.
- */
+
+
 export async function handleMotorSetSpeedHandler(
   id: number,
   speed: number,
   motors: Motor[],
-  updateMotorStatus: (id: number, status: "ON" | "OFF", speed: number, direction: "CW" | "CCW") => void,
+  updateMotorStatus: (id: number, status: "ON" | "OFF", speed: number) => void,
   handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
 ): Promise<void> {
   const motor = motors.find((m) => m.id === id);
-  if (!motor) {
-    handleAddLog(`Motor with ID ${id} not found.`, "error");
-    return;
-  }
+  if (!motor) return;
 
   try {
-    handleAddLog(`Changing speed of Motor ${id} to ${speed} Hz...`, "info");
-
-    const commandId = 8; // Command to change Motor speed
+    handleAddLog(`Changing speed of Motor ${id} to ${speed}%...`, "info");
+    const commandId = 2; // Command to change LED intensity.
     const payload = formatCommand(commandId, id, speed);
     const success = await sendFormattedCommand(payload, handleAddLog);
 
     if (success) {
-      updateMotorStatus(id, motor.status, speed, motor.direction); // Use the current direction of the motor
-      handleAddLog(`Speed of Motor ${id} set to ${speed} Hz.`, "success");
+      updateMotorStatus(id, motor.status, speed); // Update only the intensity, keeping the current state.
+      handleAddLog(`Intensity of Motor ${id} set to ${speed}%.`, "success");
     } else {
       handleAddLog(`Failed to adjust speed of Motor ${id}.`, "error");
     }
@@ -139,6 +131,36 @@ export async function handleMotorSetSpeedHandler(
     handleAddLog(`Error adjusting speed of Motor ${id}.`, "error");
   }
 }
+
+export async function handleMotorSetDirectionHandler(
+  id: number,
+  direction: "CW" | "CCW",
+  motors: Motor[],
+  updateMotorStatus: (id: number, status: "ON" | "OFF", direction: "CW" | "CCW") => void,
+  handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
+): Promise<void> {
+  const motor = motors.find((m) => m.id === id);
+  if (!motor) return;
+
+  try {
+    handleAddLog(`Changing direction of Motor ${id} to ${direction}%...`, "info");
+    const commandId = 1; // Command to change motor intensity.
+    const payload = formatCommand(commandId, id, direction === "CW" ? 1 : 0);
+    const success = await sendFormattedCommand(payload, handleAddLog);
+
+    if (success) {
+      updateMotorStatus(id, motor.status, direction); // Update only the direction, keeping the current state.
+      handleAddLog(`Direction of Motor ${id} set to ${direction}%.`, "success");
+    } else {
+      handleAddLog(`Failed to adjust direction of Motor ${id}.`, "error");
+    }
+  } catch (error) {
+    console.error(`Error adjusting direction of Motor ${id}:`, error);
+    handleAddLog(`Error adjusting direction of Motor ${id}.`, "error");
+  }
+}
+
+
 
 
 /**
@@ -543,51 +565,6 @@ export async function handleMotorSetSpeedHandlerrrr(
     handleAddLog(`Error adjusting speed of Motor ${id}.`, "error");
   }
 }
-
-export async function handleMotorSetDirectionHandler(
-  id: number,
-  direction: "CW" | "CCW",
-  motors: Motor[],
-  updateMotorStatus: (
-    id: number,
-    status: "ON" | "OFF",
-    speed: number,
-    direction: "CW" | "CCW"
-  ) => void,
-  handleAddLog: (message: string, type?: "error" | "success" | "info" | "warning") => void
-): Promise<void> {
-  const motor = motors.find((m) => m.id === id);
-  if (!motor) {
-    handleAddLog(`Motor with ID ${id} not found.`, "error");
-    return;
-  }
-
-  try {
-    handleAddLog(`Changing direction of Motor ${id} to ${direction}...`, "info");
-
-    const commandId = 12; // Command to change motor direction
-    const payload = formatCommand(commandId, id, direction === "CW" ? 1 : 0);
-
-    if (!payload) {
-      handleAddLog(`Invalid payload for Motor ${id} direction change.`, "error");
-      return;
-    }
-
-    const success = await sendFormattedCommand(payload, handleAddLog);
-
-    if (success) {
-      updateMotorStatus(id, motor.status, motor.speed, direction);
-      handleAddLog(`Direction of Motor ${id} set to ${direction}.`, "success");
-    } else {
-      handleAddLog(`Failed to change direction of Motor ${id}.`, "error");
-    }
-  } catch (error) {
-    console.error(`Error changing direction of Motor ${id} (current state: ${JSON.stringify(motor)}):`, error);
-    handleAddLog(`Error changing direction of Motor ${id}.`, "error");
-  }
-}
-
-
 /**
  * Atualiza o motor enviando comandos separados para direção e velocidade, se necessário.
  */

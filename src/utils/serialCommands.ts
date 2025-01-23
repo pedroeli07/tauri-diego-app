@@ -121,7 +121,7 @@ export function parseBinaryResponse(
       updateMotorStatus(hardwareId, "ON", undefined, direction);
       addLog(`[CMD:${commandId}] Motor ${hardwareId} direction adjusted to ${direction}.`, "info");
       break;
-    case 10: // Light Barrier Update
+    case 20: // Light Barrier Update
       const lbStatus = value === 1 ? "ACTIVE" : "INACTIVE";
       updateLightBarrierStatus(hardwareId, lbStatus);
       addLog(`[CMD:${commandId}] Light Barrier ${hardwareId} updated to ${lbStatus}.`, "info");

@@ -7,7 +7,7 @@
     },
     "package": {
         "productName": "DCubedISM",
-        "version": "1.0.21"
+        "version": "1.0.24"
     },
     "tauri": {
         "allowlist": {

@@ -8,7 +8,10 @@ import {
   getBaudList,
   handleConnect,
   handleDisconnect,
-  parseBinaryResponse
+  parseBinaryResponse,
+  parseBinaryResetResponse,
+  parseBinaryProductionResponse,
+  parseBinaryUpdateStatusResponse
 } from "@/utils/serial";
 import { formatCommand, handleMotorCommand, sendFormattedCommand } from "@/utils/commands";
 import {
@@ -21,6 +24,7 @@ import {
 import {
   Plug2,
   Power,
+  PowerOffIcon,
   RotateCcw,
   RouteOff,
   Settings,
@@ -37,6 +41,7 @@ import {
   Log,
   LightBarrierStatus,
   LightBarriers,
+  CommandIDs,
 } from "@/lib/types";
 import {
   copyLogs,
@@ -50,7 +55,7 @@ import { invoke } from "@tauri-apps/api/tauri";
 import clsx from "clsx"; // Utility for conditional classNames
 
 import DebugBox from '@/components/DebugBox';
-import { handleMotorDirectionUpdate, handleMotorSpeedUpdate, handleMotorToggleHandler, handleMotorUpdateHandler } from "@/utils/handlers";
+import { handleMotorDirectionUpdate, handleMotorSetDirectionHandler, handleMotorSetSpeedHandler, handleMotorSpeedUpdate, handleMotorToggleHandler, handleMotorUpdateHandler } from "@/utils/handlers";
 import Header from '../components/Header';
 import LEDCard from "@/components/LEDCard";
 import { appWindow as TauriAppWindow } from "@tauri-apps/api/window";
@@ -58,19 +63,18 @@ import { listen } from "@tauri-apps/api/event";
 import MotorCard from "@/components/MotorCard";
 import { TempMotor } from "@/lib/types"; // Certifique-se de importar TempMotor
 import { send } from "process";
-import { handleLEDToggle, handleLEDIntensityChange } from "@/utils/handlers";
 import { handleLEDToggleHandler, handleLEDSetIntensityHandler } from "@/utils/handlers";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import LightBarrierCard from "@/components/LightBarrierCard";
 import { saveAs } from 'file-saver';
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
+import { InterfaceStatus } from "@/lib/types"; // Importe as interfaces e o estado inicial
+import { initialInterfaceStatus } from "@/utils/initialStates"; // Importe o estado inicial da interface
+import { useMediaQuery } from 'react-responsive';
 
 
-export enum CommandIDs {
-  RESET = 9,
-  PRODUCTION_MODE = 10,
-}
+
 
 /**
  * Exporta logs no formato PDF de forma simplificada.
@@ -135,11 +139,7 @@ const getBase64FromUrl = async (url: string): Promise<string> => {
   });
 };
 
-/**
- * Exporta logs no formato especificado (CSV, PDF, Excel).
- * @param logs - Array de logs a serem exportados.
- * @param format - O formato para exportar os logs ("csv" | "pdf" | "excel").
- */
+
 /**
  * Exporta logs no formato especificado (CSV, PDF, Excel).
  * @param logs - Array de logs a serem exportados.
@@ -252,7 +252,8 @@ export const maximizeApp = async (appWindow: typeof TauriAppWindow | null) => {
 };
 
 
-
+// Variável global para armazenar a referência para a função sendReset
+let globalSendReset: () => Promise<void>;
 
 /**
  * HomePageProps Interface
@@ -288,7 +289,9 @@ const Home: React.FC<HomePageProps> = () => {
   const [lightBarriers, setLightBarriers] = useState<LightBarriers[]>(initialLightBarriers); // Array of light barriers
   const [leds, setLeds] = useState<LED[]>(initialLeds); // Array of LEDs
 
- // const [lightBarriers, setLightBarriers] = useState(initialLightBarriers);
+  // Estado para o status completo da interface
+  const [interfaceStatus, setInterfaceStatus] = useState<InterfaceStatus[]>([]);
+  // const [lightBarriers, setLightBarriers] = useState(initialLightBarriers);
 
 
   const [isProductionActive, setIsProductionActive] = useState<boolean>(false);
@@ -355,7 +358,7 @@ const updateLEDStatusFunction = (
 };
 
 
-// Atualiza o status do LED no estado
+// Atualiza o status do MOTOR no estado
 const updateMotorStatusFunction = (
   id: number,
   status: "ON" | "OFF",
@@ -370,7 +373,7 @@ const updateMotorStatusFunction = (
             ...motor,
             status,
             speed: speed !== undefined ? speed : motor.speed,
-            direction: direction !== undefined ? direction : motor.direction,
+            direction: direction !== undefined ? direction : motor.direction
           }
         : motor
     )
@@ -387,40 +390,6 @@ const updateMotorStatusFunction = (
 
 
 
-  /*
-  const handleLEDToggle = async (id: number) => {
-    const led = leds.find((l) => l.id === id);
-    if (!led) return;
-  
-    const newStatus = led.status === "ON" ? "OFF" : "ON";
-    const newIntensity = newStatus === "ON" ? 100 : 0;
-  
-    handleAddLog(`Toggling LED ${id} to ${newStatus}...`, "info");
-  
-    const success = await handleLEDCommand(id, newStatus, newIntensity, handleAddLog);
-    if (success) {
-      updateLEDStatus(id, newStatus, newIntensity);
-      handleAddLog(`LED ${id} toggled to ${newStatus}.`, "success");
-    } else {
-      handleAddLog(`Failed to toggle LED ${id} to ${newStatus}.`, "error");
-    }
-  };
-  
-  const handleLEDIntensityChange = async (id: number, intensity: number) => {
-    const led = leds.find((l) => l.id === id);
-    if (!led) return;
-  
-    handleAddLog(`Changing intensity of LED ${id} to ${intensity}%...`, "info");
-  
-    const success = await handleLEDCommand(id, "ON", intensity, handleAddLog);
-    if (success) {
-      updateLEDStatus(id, "ON", intensity);
-      handleAddLog(`LED ${id} intensity set to ${intensity}%.`, "success");
-    } else {
-      handleAddLog(`Failed to set intensity of LED ${id} to ${intensity}%.`, "error");
-    }
-  };
-*/
 
   // Recording State
   const [isRecording, setIsRecording] = useState<boolean>(false); // Indicates if recording is active
@@ -504,49 +473,112 @@ const updateMotorStatusFunction = (
     }
   };
   
-
-  /**
-   * Toggles the serial connection between connected and disconnected states.
+/**
+   * Handles the disconnection from the serial port.
+   * This function now integrates the sendReset functionality.
    */
-  const toggleConnection = async () => {
-    let showLoaderTimeout: NodeJS.Timeout;
-    const loaderDelay = 500; // Tempo para mostrar o overlay (500ms)
-  
-    if (!isConnected) {
-      handleAddLog("Attempting to connect...", "info");
-  
-      // Configure um timeout para exibir o overlay apenas se a conexão demorar
-      showLoaderTimeout = setTimeout(() => {
-        setIsConnecting(true);
-      }, loaderDelay);
-  
-      try {
-        const connected = await handleConnect(port, baud, setIsConnected);
-  
-        if (connected) {
-          handleAddLog(`Connected to port ${port} at ${baud} baud.`, "success");
-        } else {
-          handleAddLog("Failed to connect to the port.", "error");
-        }
-      } catch (error:any) {
-        handleAddLog(`Error connecting: ${error.message}`, "error");
-      } finally {
-        clearTimeout(showLoaderTimeout); // Cancela o timeout se a conexão for rápida
-        setIsConnecting(false); // Certifica-se de ocultar o overlay
-      }
+const handleDisconnect = async (
+  setIsConnected: React.Dispatch<React.SetStateAction<boolean>>
+): Promise<boolean> => {
+  try {
+
+    // Chamar a função do backend para desconectar
+    const disconnected = await invoke('handle_serial_disconnect');
+
+    if (disconnected) {
+      setIsConnected(false);
+          // Resetar para os estados iniciais ao desconectar
+      setLeds(initialLeds);
+      setMotors(initialMotors);
+      setLightBarriers(initialLightBarriers);
+
+      handleAddLog('Disconnected from serial port.', 'success');
+      toast.success('Disconnected from serial port.');
+      return true;
+
     } else {
-      try {
-        const disconnected = await handleDisconnect(setIsConnected);
-        if (disconnected) {
-          handleAddLog(`Disconnected from port ${port}.`, "success");
-        } else {
-          handleAddLog("No active connection to disconnect.", "warning");
-        }
-      } catch (error:any) {
-        handleAddLog(`Error disconnecting: ${error.message}`, "error");
-      }
+      handleAddLog('No active connection to disconnect.', 'warning');
+      toast.warning('No active connection to disconnect.');
+      return false;
     }
-  };
+  } catch (error) {
+    console.error('Error during disconnection:', error);
+    handleAddLog(`Error disconnecting: ${error}`, 'error');
+    toast.error('Error during disconnection.');
+    return false;
+  }
+};
+
+/**
+ * Toggles the serial connection between connected and disconnected states.
+ */
+/**
+ * Toggles the serial connection between connected and disconnected states.
+ */
+const toggleConnection = async () => {
+  let showLoaderTimeout: NodeJS.Timeout;
+  const loaderDelay = 500;
+
+  if (!isConnected) {
+    handleAddLog('Attempting to connect...', 'info');
+
+    showLoaderTimeout = setTimeout(() => {
+      setIsConnecting(true);
+    }, loaderDelay);
+
+    try {
+      const connected = await handleConnect(port, baud, setIsConnected);
+
+      if (connected) {
+        // Enviar comando de conectado com sucesso ao conectar
+        await sendIsConnected(); // Chama sendIsConnected após a conexão
+
+        handleAddLog(`Connected to port ${port} at ${baud} baud.`, 'success');
+      } else {
+        handleAddLog('Failed to connect to the port.', 'error');
+      }
+    } catch (error: any) {
+      handleAddLog(`Error connecting: ${error.message}`, 'error');
+    } finally {
+      clearTimeout(showLoaderTimeout);
+      setIsConnecting(false);
+    }
+  } else {
+    // Se já estiver conectado, apenas desconecte
+    try {
+      const disconnected = await handleDisconnect(setIsConnected);
+      if (disconnected) {
+        handleAddLog(`Disconnected from port ${port}.`, 'success');
+      } else {
+        handleAddLog('Failed to disconnect.', 'error');
+      }
+    } catch (error: any) {
+      handleAddLog(`Error disconnecting: ${error.message}`, 'error');
+    }
+  }
+};
+
+/**
+ * Ativa o modo de conectado (envia o comando CONNECTION_ESTABLISHED).
+ */
+const sendIsConnected = async () => {
+  try {
+    const command = formatCommand(CommandIDs.CONNECTION_ESTABLISHED, 0x00, 1); // Comando para CONNECTION_ESTABLISHED (value 1 para ativar)
+    const success = await sendFormattedCommand(command, handleAddLog);
+
+    if (success) {
+      handleAddLog("Connected mode activated.", "success");
+      toast.success("Connected mode activated.");
+    } else {
+      handleAddLog("Failed to activate Connected mode.", "error");
+      toast.error("Failed to activate Connected mode.");
+    }
+  } catch (error) {
+    handleAddLog(`Error activating Connected mode: ${error}`, "error");
+    toast.error("Failed to activate Connected mode.");
+  }
+};
+
 
 /**
  * Ativa o modo de produção.
@@ -626,96 +658,159 @@ const sendReset = async () => {
   }
 };
 
+ /**
 
+ * Updates the status and intensity of a specific LED.
 
-  /**
-   * Updates the status and intensity of a specific LED.
-   * @param id - The ID of the LED.
-   * @param status - The new status ("ON" | "OFF").
-   * @param intensity - The new intensity value (optional).
-   */
+ * @param id - The ID of the LED.
+
+ * @param status - The new status ("ON" | "OFF").
+
+ * @param intensity - The new intensity value (optional).
+
+ */
+
 // Update LED status in state
+
 const updateLEDStatus = (id: number, status: "ON" | "OFF", intensity?: number) => {
-  setLeds(prevLeds =>
-    prevLeds.map(led =>
-      led.id === id
-        ? {
-            ...led,
-            status,
-            intensity: intensity !== undefined ? intensity : led.intensity,
-            // Add any additional fields if necessary
-          }
-        : led
-    )
-  );
-  handleAddLog(
-    `LED ${id} updated to ${status}${intensity !== undefined ? ` with intensity ${intensity}%` : ""}`,
-    "info"
-  );
+
+ setLeds(prevLeds =>
+
+  prevLeds.map(led =>
+
+   led.id === id
+
+    ? {
+
+      ...led,
+
+      status,
+
+      intensity: intensity !== undefined ? intensity : led.intensity,
+
+      // Add any additional fields if necessary
+
+     }
+
+    : led
+
+  )
+
+ );
+
+ handleAddLog(
+
+  `LED ${id} updated to ${status}${intensity !== undefined ? ` with intensity ${intensity}%` : ""}`,
+
+  "info"
+
+ );
+
+
+
+
 
 };
+
+const updateMotorStatus = (id: number, status: "ON" | "OFF", speed?: number, direction?: "CW" | "CCW") => {
+
+ setMotors(prevMotors =>
+
+  prevMotors.map(motor =>
+
+   motor.id === id
+
+    ? {
+
+      ...motor,
+
+      status,
+
+      speed: speed !== undefined ? speed : motor.speed,
+
+      direction: direction !== undefined ? direction : motor.direction,
+
+      // Add any additional fields if necessary
+
+     }
+
+    : motor
+
+  )
+
+ );
+
+ handleAddLog(
+
+  `Motor ${id} updated to ${status}${speed !== undefined ? ` with speed ${speed}%` : ""}`,
+
+  "info"
+
+ );
+
+
+
+};
+
+
 
 const updateLightBarrierStatus = (id: number, status: LightBarrierStatus) => {
-  setLightBarriers((prevLightBarriers) =>
-    prevLightBarriers.map((lightBarrier) =>
-      lightBarrier.id === id
-        ? {
-            ...lightBarrier,
-            status, // Atualiza o status com o enum
-            lastChanged: new Date().toLocaleTimeString(), // Atualiza o timestamp de última mudança
-          }
-        : lightBarrier // Mantém as outras barreiras inalteradas
-    )
-  );
 
-  // Gera mensagem de log detalhada
-  const logMessage = `Light Barrier ${id} updated to ${status}.`;
-  handleAddLog(logMessage, "info");
+ setLightBarriers((prevLightBarriers) =>
+
+  prevLightBarriers.map((lightBarrier) =>
+
+   lightBarrier.id === id
+
+    ? {
+
+      ...lightBarrier,
+
+      status, // Atualiza o status com o enum
+
+      lastChanged: new Date().toLocaleTimeString(), // Atualiza o timestamp de última mudança
+
+     }
+
+    : lightBarrier // Mantém as outras barreiras inalteradas
+
+  )
+
+ );
+
+
+
+
+ // Gera mensagem de log detalhada
+
+ const logMessage = `Light Barrier ${id} updated to ${status}.`;
+
+ handleAddLog(logMessage, "info");
+
 };
 
 
- /**
- * Atualiza o status, velocidade e direção de um motor específico.
- * @param id - O ID do motor.
- * @param status - O novo status ("ON" | "OFF").
- * @param speed - O novo valor de velocidade (opcional).
- * @param direction - A nova direção ("CW" | "CCW") (opcional).
- */
-const updateMotorStatus = (
-  id: number,
-  status: "ON" | "OFF",
-  speed?: number,
-  direction?: "CW" | "CCW"
-) => {
-  setMotors((prevMotors) =>
-    prevMotors.map((motor) =>
-      motor.id === id
+ interface SerialPayload {
+
+  data: number[];
+
+ }
+
+
+ const updateInterfaceStatus = async () => {
+
+  setInterfaceStatus((prevInterfaceStatus) =>
+    prevInterfaceStatus.map((item) =>
+      item
         ? {
-            ...motor,
-            status,
-            speed: speed !== undefined ? speed : motor.speed,
-            direction: direction !== undefined ? direction : motor.direction,
+            ...item,
+          
             lastChanged: new Date().toLocaleTimeString(), // Atualiza o timestamp de última mudança
           }
-        : motor
+        : item // Mantém o objeto inalterado
     )
   );
-
-  // Gera mensagem de log detalhada
-  const logMessage = `Motor ${id} updated to ${status}${
-    speed !== undefined ? ` with speed ${speed} Hz` : ""
-  }${direction !== undefined ? ` and direction ${direction}` : ""}.`;
-
-  handleAddLog(logMessage, "info");
 };
-
-
-  
-  interface SerialPayload {
-    data: number[];
-  }
-
-
 
 
   /**
@@ -727,6 +822,9 @@ const updateMotorStatus = (
         const data = event.payload.data;
         handleAddLog(`Received by serial (binary): [${data.join(', ')}]`, "info");
         parseBinaryResponse(data, updateLEDStatus, updateMotorStatus, updateLightBarrierStatus, handleAddLog);
+        parseBinaryResetResponse(data, sendReset, handleAddLog);
+        parseBinaryProductionResponse(data, sendProductionMode, handleAddLog);
+        parseBinaryUpdateStatusResponse(data, updateInterfaceStatus, handleAddLog);
       });
       handleAddLog("Serial event listeners set up successfully (binary).", "success");
     } catch (error: any) {
@@ -870,6 +968,29 @@ function updateMotor(id: number, speed: number, direction: "CW" | "CCW") {
   handleMotorSpeedUpdate(id, speed, motors, updateMotorStatusFunction, handleAddLog);
 }
 
+const updateMotorDirectionFunction = (
+  id: number,
+  status: "ON" | "OFF",
+  direction: "CW" | "CCW"
+) => {
+  // Update the state of the motors, only changing the direction
+  setMotors(prevMotors =>
+    prevMotors.map(motor =>
+      motor.id === id
+        ? { ...motor, status, direction }
+        : motor
+    )
+  );
+
+  // Add a log message
+  handleAddLog(
+    `Motor ${id} updated to ${status} with direction ${direction}.`,
+    "info"
+  );
+};
+
+
+const isScreenLargerThan2xl = useMediaQuery({ minWidth: '1536px' });
 
 return (
 <main className="relative h-screen w-screen bg-gradient-to-b from-[#1c1c1c] via-[#0a0a0a] to-[#1a1a1a]">
@@ -892,25 +1013,29 @@ return (
     <div className="flex items-center space-x-4 self-start">
       {renderSelects(selectConfigs, "w-28")}
       <div className="grid grid-cols-2 gap-4 mt-7">
-        <Button
-          onClick={toggleConnection}
-          disabled={!port || isUpdatingPorts || isProductionMode}
-          className={clsx(
-            "w-full flex items-center justify-center px-2 py-1 rounded-lg active:scale-75 transition-all ",
-            isConnected
-              ? "bg-red-600 hover:bg-red-500 text-white"
-              : "bg-green-600 hover:bg-green-500 text-white"
-          )}
+      <Button
+            onClick={toggleConnection}
+            disabled={!port || isUpdatingPorts || isProductionMode}
+            className={clsx(
+                "w-full flex items-center justify-center px-2 py-1 rounded-lg active:scale-75 transition-all",
+                isConnected
+                    ? "bg-red-600 hover:bg-red-500 text-white"
+                    : "bg-green-600 hover:bg-green-500 text-white"
+            )}
         >
-          {isConnected ? (
-            <>
-              <Plug2 className="w-5 h-5 mr-1" /> Disconnect
-            </>
-          ) : (
-            <>
-              <Power className="w-5 h-5 mr-1" /> Connect
-            </>
-          )}
+            {isConnected ? (
+                <>
+                    <PowerOffIcon className="w-5 h-5" /> {/* Removido mr-1 aqui */}
+                    <span className="sr-only">Disconnect</span>
+                    {isScreenLargerThan2xl && <span className="ml-1">Disconnect</span>} {/* Texto visível em 2xl+ */}
+                </>
+            ) : (
+                <>
+                    <Power className="w-5 h-5" /> {/* Removido mr-1 aqui */}
+                    <span className="sr-only">Connect</span>
+                    {isScreenLargerThan2xl && <span className="ml-1">Connect</span>} {/* Texto visível em 2xl+ */}
+                </>
+            )}
         </Button>
         <Button
           onClick={fetchPorts}
@@ -1010,9 +1135,27 @@ return (
       handleAddLog
     )
   }
-  handleMotorSet={(id, speed, direction) =>
-    updateMotor(id, speed, direction) // Sempre envia os comandos
+  handleMotorSetSpeed={(id, speed) =>
+    handleMotorSetSpeedHandler(
+      id,
+      speed,
+      motors,
+      updateMotorStatusFunction,
+      handleAddLog
+    )
   }
+  handleMotorSetDirection={(id, direction) =>
+    handleMotorSetDirectionHandler(
+      id,
+      direction,
+      motors,
+      updateMotorDirectionFunction, // Use the specific function here
+      handleAddLog
+    )
+  }
+
+
+  
   isProductionMode={isProductionMode}
 />
 

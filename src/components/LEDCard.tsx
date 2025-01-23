@@ -1,6 +1,6 @@
 // src/components/LEDCard.tsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import clsx from "clsx";
 import { Button } from "./ui/button"; // Replace with your button component
 import CustomSlider from "./ui/custom-slider2"; // Replace with your slider component
@@ -30,6 +30,13 @@ const LEDCard: React.FC<LEDCardProps> = ({
 }) => {
   const [tempLEDValues, setTempLEDValues] = useState<Record<number, number>>({});
 
+  // Monitora mudanças em 'leds' para detectar reset
+  useEffect(() => {
+    const isReset = leds.every((led) => led.status === "OFF" && led.intensity === 0);
+    if (isReset) {
+      setTempLEDValues({}); // Reseta tempLEDValues se todos os LEDs estiverem desligados e com intensidade 0
+    }
+  }, [leds]);
   /**
    * Function to calculate the border and shadow color based on intensity.
    */
@@ -52,29 +59,29 @@ const LEDCard: React.FC<LEDCardProps> = ({
   };
 
   return (
-<div className="w-full h-full px-2 py-5 relative -mt-32">
+<div className="w-[550px] h-full py-5 relative mr-8 -mt-14">
   {/* Grid: 2 colunas fixas com espaçamento configurado */}
-  <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-6 w-full">
-    {leds.map((led) => {
+  <div className="p-1 2xl:p-4 grid grid-cols-1 sm:grid-cols-2 gap-x-2 gap-y-2 w-[90%]">
+  {leds.map((led) => {
       return (
-        <div key={led.id} className="flex flex-col w-full">
+        <div key={led.id} className="w-full">
           <div
             style={getStyles(led)}
             className={clsx(
-              "w-[280px] p-6 duration-300 flex flex-col space-y-2 overflow-hidden bg-gradient-to-b from-[#0a0a0a] via-[#070707] to-[#000000] rounded-lg border-double border-4",
+              "w-gull p-2 2xl:p-4 duration-300 flex flex-col space-y-2 overflow-hidden rounded-lg border-double border-4",
               isRecording && "opacity-50 cursor-not-allowed"
             )}
           >
-            {/* Cabeçalho do Card */}
+            {/* Card Header */}
             <div className="flex justify-between items-center">
-              <h3
-                className={clsx(
-                  "text-xl sm:text-2xl font-bold",
-                  led.status === "ON" ? "text-violet-700" : "text-gray-700"
-                )}
-              >
-                LED {led.id}
-              </h3>
+                <h3
+                  className={clsx(
+                    "text-xl sm:text-2xl font-bold",
+                    led.status === "ON" ? "text-violet-700" : "text-gray-700"
+                  )}
+                >
+                  LED {led.id}
+                </h3>
               <CustomTooltip
                 content={
                   led.status === "ON"
@@ -84,23 +91,28 @@ const LEDCard: React.FC<LEDCardProps> = ({
                 placement="right"
               >
                 <Button
-                  onClick={() => handleLEDToggle(led.id)}
-                  disabled={!isConnected || isProductionMode}
-                  variant="ghost"
-                  className={clsx(
-                    "p-2 transition-all text-lg active:scale-75 ",
-                    led.status === "ON"
-                      ? "text-violet-700 hover:text-purple-600"
-                      : "text-gray-700 hover:text-violet-400 hover:bg-violet-900"
-                  )}
-                >
-                  {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
-                </Button>
+                    onClick={() => handleLEDToggle(led.id)}
+                    disabled={!isConnected || isProductionMode}
+                    variant="ghost"
+                    className={clsx(
+                      "p-2 transition-all text-lg active:scale-75",
+                      led.status === "ON"
+                        ? "text-violet-700 hover:text-purple-600"
+                        : "text-gray-700 hover:text-violet-400 hover:bg-violet-900"
+                    )}
+                  >
+                    {led.status === "ON" ? <PowerOff size={24} /> : <Power size={24} />}
+                  </Button>
               </CustomTooltip>
             </div>
-  {/* LED Icon and Status/Intensity Display */}
-  <div className="flex flex-col items-center text-xl sm:text-2xl w-full h-full">
-  <LEDIcon intensity={led.intensity} status={led.status} />
+ {/* LED Icon and Status/Intensity Display: Responsive stacking */}
+ <div className="flex flex-col items-center text-xl sm:text-2xl w-full">
+                <LEDIcon
+                  intensity={led.intensity}
+                  status={led.status}
+                  className="hidden 2xl:flex" // Hide on smaller screens
+                />
+  {/* Resto do conteúdo, como intensidade e status */}
 
  {/* Texto do Status (ON/OFF) */}
  <span
@@ -114,8 +126,8 @@ const LEDCard: React.FC<LEDCardProps> = ({
           })` // Efeito de brilho
         : "none",
     }}
-    className="text-base sm:text-lg font-extrabold"
-  >
+    className="text-base sm:text-lg font-extrabold mt-2 sm:mt-0" // Add margin on smaller screens
+    >
     {led.status}
   </span>
 
@@ -153,11 +165,11 @@ const LEDCard: React.FC<LEDCardProps> = ({
       max={100}
       step={1}
       disabled={!isConnected || isProductionMode}
-      className="w-full sm:w-[80%]"
+      className="w-full  2xl:flex xl:w-1/3 mx-auto"
     />
   </CustomTooltip>
   <CustomTooltip content="Adjust Intensity (%)" placement="top">
-    <div className="flex items-center space-x-2 w-full sm:w-1/3">
+    <div className="flex items-center space-x-2 w-full sm:w-1/3 mx-auto">
       <Input
         type="number"
         value={tempLEDValues[led.id] ?? led.intensity}
@@ -189,7 +201,7 @@ const LEDCard: React.FC<LEDCardProps> = ({
   }}
   disabled={!isConnected || isProductionMode}
   className={clsx(
-    "px-3 py-2 rounded-md transition-all mt-2 sm:mt-0",
+    "w-1/2 mx-auto px-3 py-2 rounded-md transition-all mt-2 sm:mt-0",
     led.status === "ON"
       ? "bg-[#7221bd] hover:bg-[#451f68] text-white" // Cor vibrante para ON
       : "bg-gray-500 hover:bg-gray-600 text-gray-300 opacity-75 active:scale-75 transition-all" // Cinza escuro para OFF
